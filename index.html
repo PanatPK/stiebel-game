@@ -298,7 +298,11 @@ window.addEventListener('hashchange', route);
 gRef.on('value', s => { game = Object.assign(game, s.val() || {}); game.config = Object.assign({ duration: 60, stopAt: 15, stopLen: 5, auto: true, showWin: true, penWin: 1.5, penMax: 3 }, game.config || {}); onGame(); });
 let onGameHandlers = []; function onGame() { onGameHandlers.forEach(f => f()); }
 function addGameHandler(f) { onGameHandlers.push(f); f(); }
-setInterval(() => { document.querySelectorAll('#pTimer,#bTimer,#aTimer').forEach(e => e.textContent = fmt(remaining())); }, 200);
+setInterval(() => {
+  document.querySelectorAll('#pTimer,#bTimer,#aTimer').forEach(e => e.textContent = fmt(remaining()));
+  if (P.started && game.state === 'running' && remaining() <= 0 && !P.timeUp) { P.timeUp = true; P.locked = true; strip('หมดเวลา'); if (navigator.vibrate) navigator.vibrate(300); }
+  if (P.timeUp && (game.state === 'idle' || (game.state === 'running' && remaining() > 0))) P.timeUp = false;
+}, 200);
 
 /* ================= PLAYER ================= */
 let P = { started: false, table: null, uid: null, mine: 0, pen: 0, locked: false, penalized: false, angle: 0, acc: 0, lastA: null, down: false, moves: [], lastRotTs: [] };
@@ -369,7 +373,7 @@ function bindCube() {
     const a = ang(e); let d = a - P.lastA; if (d > 180) d -= 360; if (d < -180) d += 360; P.lastA = a;
     if (Math.abs(d) < 0.5) return;
     const t = now(); P.moves.push(t); if (P.moves.length > 40) P.moves.shift();
-    if (P.locked || game.state !== 'running' || d < 0) return;
+    if (P.locked || game.state !== 'running' || d < 0 || remaining() <= 0) return;
     P.angle += d; knob.style.transform = 'rotate(' + P.angle + 'deg)'; heat.style.strokeDashoffset = 100 - Math.min(100, (P.acc + d) / 360 * 100);
     P.acc += d;
     while (P.acc >= 360) {
