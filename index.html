@@ -92,8 +92,12 @@ input,select{font:inherit}
 .row:nth-child(1) .pos{color:var(--red)}
 .row:nth-child(1) .sc{color:var(--red)}
 .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dg);font-size:3vh}
-#bStop{position:fixed;inset:0;background:var(--red);display:none;align-items:center;justify-content:center;font-size:22vh;font-weight:700;letter-spacing:.1em;z-index:5;pointer-events:none}
+#bStop{position:fixed;inset:0;background:var(--red);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:40;pointer-events:none}
 #bStop.on{display:flex}
+#bStop .x{font-size:24vh;font-weight:700;letter-spacing:.12em;line-height:1}
+#bStop .y{font-size:4.5vh;font-weight:500;margin-top:1vh;opacity:.9}
+#bAdmin{position:fixed;right:2vw;bottom:2vh;z-index:60;font-size:1.8vh;color:var(--dg);padding:1vh 1.6vw;border:1px solid #333;border-radius:99px;opacity:.5}
+#bAdmin:hover{opacity:1}
 #bWin{position:fixed;inset:0;background:var(--black);display:none;flex-direction:column;align-items:center;z-index:50;text-align:center;padding:9vh 8vw 6vh}
 #bWin.on{display:flex}
 #bWin .l{font-size:2.4vh;color:var(--mg);letter-spacing:.08em}
@@ -174,7 +178,8 @@ input,select{font:inherit}
   <div class="head"><div><div class="title">STIEBEL CUBE</div><div class="sub" id="bSub">รอเริ่มรอบ</div></div>
     <div><div class="bt num" id="bTimer">1:00</div><div class="bs" id="bRound">รอบที่ 1</div></div></div>
   <div class="list" id="bList"><div class="empty">ยังไม่มีโต๊ะเข้าร่วม</div></div>
-  <div id="bStop">STOP</div>
+  <div id="bStop"><div class="x">STOP</div><div class="y">หยุดหมุน อย่าขยับ</div></div>
+  <button id="bAdmin" onclick="location.hash='#admin'">หน้าควบคุม</button>
   <div class="toast" id="bToast">GO! หมุนต่อได้</div>
   <div id="bWin"><div class="l">โต๊ะที่ได้คะแนนสะสมสูงสุด</div><div class="t" id="wT">โต๊ะ 1</div><div class="s num" id="wS">0 คะแนน</div><div class="rule"></div><div id="wList"></div></div>
 </section>
