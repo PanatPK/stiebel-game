@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>STIEBEL CUBE — Spin Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="config.js"></script>
+<style>
+:root{
+  --red:#BA0C2F; --black:#000; --dg:#808285; --mg:#909195; --g:#D9D9D9; --lg:#EDEDED; --white:#fff;
+  --font:'Prompt',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--black);color:var(--white);font-family:var(--font);font-weight:300;overflow:hidden;overscroll-behavior:none}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+input,select{font:inherit}
+.page{display:none;height:100%}
+.page.on{display:flex}
+.num{font-weight:700;font-variant-numeric:tabular-nums}
+
+/* ---------- PLAYER ---------- */
+#player{flex-direction:column;padding:20px 20px 28px;touch-action:none;user-select:none;-webkit-user-select:none}
+.top{display:flex;justify-content:space-between;align-items:baseline}
+.top .table{font-weight:500;font-size:18px}
+.top .table span{color:var(--red);font-weight:700;font-size:26px;margin-left:6px}
+.top .timer{font-size:34px;letter-spacing:.02em}
+.tot{margin-top:26px;text-align:center}
+.tot .lab{font-size:14px;color:var(--mg)}
+.tot .val{font-size:88px;line-height:1;margin-top:2px}
+.arena{flex:1;display:flex;align-items:center;justify-content:center;position:relative}
+.cube{width:min(72vw,300px);aspect-ratio:1;position:relative;will-change:transform;touch-action:none}
+.cube .face{position:absolute;inset:0;background:var(--red);border-radius:10%;box-shadow:0 22px 0 -6px #6d0619,0 44px 0 -12px #3a020d}
+.cube .face:after{content:"";position:absolute;inset:14%;border-radius:8%;background:linear-gradient(145deg,#d4123a,#9b0a27)}
+.cube .notch{position:absolute;top:6%;left:50%;width:9%;aspect-ratio:1;transform:translateX(-50%);background:var(--white);border-radius:2px}
+.cube .mark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:min(9vw,38px);letter-spacing:.14em;color:var(--white)}
+.mine{display:flex;justify-content:center;gap:28px;font-size:15px;color:var(--mg)}
+.mine b{color:var(--white);font-weight:500;font-size:18px;margin-left:6px}
+.mine .pen b{color:var(--red)}
+.strip{margin-top:16px;text-align:center;font-size:15px;color:var(--mg);min-height:22px}
+.hint{color:var(--dg);font-size:13px;text-align:center;margin-top:4px}
+/* overlays */
+.ov{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;z-index:10}
+.ov.on{display:flex}
+.ov h1{font-size:64px;font-weight:700;line-height:1}
+.ov p{margin-top:12px;font-size:18px;color:rgba(255,255,255,.75)}
+.ov .big{font-size:120px;font-weight:700;line-height:1}
+#ovStop{background:rgba(0,0,0,.92)}
+#ovPen{background:var(--red)}
+#ovPen p{color:rgba(255,255,255,.85)}
+.btn{margin-top:32px;padding:16px 40px;border-radius:999px;font-weight:500;font-size:20px;background:var(--white);color:var(--black)}
+.btn:disabled{opacity:.35}
+#ovJoin{background:var(--black)}
+#ovJoin .sel{margin-top:20px;display:flex;gap:10px;align-items:center}
+#ovJoin select{padding:14px 20px;border-radius:12px;border:1px solid var(--dg);background:#111;color:#fff;font-size:20px;font-weight:500}
+#ovDone{background:var(--black)}
+.rank{font-size:14px;color:var(--mg);margin-top:8px}
+
+/* ---------- BOARD ---------- */
+#board{flex-direction:column;padding:5vh 6vw;background:var(--black)}
+#board .head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid var(--red);padding-bottom:2vh}
+#board .title{font-weight:700;font-size:4.2vh;letter-spacing:.1em}
+#board .sub{font-size:2.2vh;color:var(--mg);margin-top:.4vh}
+#board .bt{font-size:8vh;line-height:1;font-weight:700}
+#board .bs{font-size:2.2vh;color:var(--mg);text-align:right}
+.list{flex:1;position:relative;margin-top:2vh}
+.row{position:absolute;left:0;right:0;height:7vh;display:grid;grid-template-columns:8vh 1fr auto;align-items:center;gap:2vw;transition:transform .7s cubic-bezier(.2,.8,.2,1),opacity .4s;border-bottom:1px solid #2a2a2a}
+.row .pos{font-size:3.6vh;color:var(--dg);font-weight:500}
+.row .tn{font-size:3.8vh;font-weight:500}
+.row .tn small{font-size:2vh;color:var(--mg);margin-left:1.2vw;font-weight:300}
+.row .sc{font-size:4.6vh;font-weight:700;font-variant-numeric:tabular-nums}
+.row:nth-child(1) .pos{color:var(--red)}
+.row:nth-child(1) .sc{color:var(--red)}
+.empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dg);font-size:3vh}
+#bStop{position:fixed;inset:0;background:var(--red);display:none;align-items:center;justify-content:center;font-size:22vh;font-weight:700;letter-spacing:.1em;z-index:5;pointer-events:none}
+#bStop.on{display:flex}
+#bWin{position:fixed;inset:0;background:var(--black);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:6;text-align:center}
+#bWin.on{display:flex}
+#bWin .l{font-size:3vh;color:var(--mg)}
+#bWin .t{font-size:16vh;font-weight:700;line-height:1.1;color:var(--red)}
+#bWin .s{font-size:5vh;margin-top:2vh}
+
+/* ---------- ADMIN ---------- */
+#admin{flex-direction:column;overflow:auto;padding:24px;max-width:720px;margin:0 auto;width:100%;background:var(--black)}
+#admin h2{font-weight:500;font-size:22px}
+#admin .st{margin-top:14px;padding:18px;border:1px solid #333;border-radius:14px;display:flex;justify-content:space-between;align-items:center}
+#admin .st .k{font-size:14px;color:var(--mg)}
+#admin .st .v{font-size:28px;font-weight:700}
+.ctl{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.ctl button{padding:18px;border-radius:12px;font-weight:500;font-size:18px;background:#1a1a1a;border:1px solid #333}
+.ctl button.p{background:var(--red);border-color:var(--red)}
+.ctl button.w{background:var(--white);color:var(--black)}
+.ctl button:disabled{opacity:.3}
+.cfg{margin-top:22px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.cfg label{font-size:13px;color:var(--mg);display:block;margin-bottom:6px}
+.cfg input{width:100%;padding:12px;border-radius:10px;border:1px solid #333;background:#111;color:#fff;font-size:18px}
+.chk{margin-top:12px;display:flex;align-items:center;gap:10px;font-size:15px;color:var(--g)}
+.chk input{width:22px;height:22px;accent-color:var(--red)}
+.sub2{margin-top:26px;font-size:14px;color:var(--mg);border-top:1px solid #222;padding-top:16px}
+.tbl{width:100%;margin-top:8px;border-collapse:collapse;font-size:15px}
+.tbl td{padding:8px 4px;border-bottom:1px solid #1e1e1e}
+.tbl td:last-child{text-align:right;font-weight:500}
+.lnk{margin-top:16px;display:flex;flex-wrap:wrap;gap:10px}
+.lnk button{padding:12px 16px;border-radius:10px;border:1px solid #333;font-size:15px}
+#pin{flex-direction:column;align-items:center;justify-content:center;gap:16px}
+#pin input{padding:16px;font-size:28px;letter-spacing:.4em;text-align:center;width:220px;border-radius:12px;border:1px solid #333;background:#111;color:#fff}
+
+/* ---------- QR ---------- */
+#qr{flex-direction:column;overflow:auto;padding:24px;background:#fff;color:#000}
+#qr .bar{display:flex;gap:12px;align-items:center;margin-bottom:20px}
+#qr .bar input{width:90px;padding:10px;font-size:18px;border:1px solid #ccc;border-radius:8px}
+#qr .bar button{padding:10px 18px;border-radius:8px;background:#000;color:#fff}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px}
+.card{border:2px solid #000;border-radius:16px;padding:22px;text-align:center;break-inside:avoid;page-break-inside:avoid}
+.card .n{font-size:14px;color:#555}
+.card .b{font-size:64px;font-weight:700;line-height:1.1;color:var(--red)}
+.card .q{margin:14px auto;width:180px;height:180px}
+.card .q img,.card .q canvas{width:100%!important;height:100%!important}
+.card .i{font-size:13px;color:#333;line-height:1.5}
+@media print{#qr .bar{display:none}#qr{padding:0}.cards{grid-template-columns:1fr 1fr 1fr}.card{border-width:1px}}
+@media (prefers-reduced-motion:reduce){.row{transition:none}}
+</style>
+</head>
+<body>
+
+<!-- ================= PLAYER ================= -->
+<section id="player" class="page">
+  <div class="top"><div class="table">โต๊ะ<span id="pTable">–</span></div><div class="timer num" id="pTimer">1:00</div></div>
+  <div class="tot"><div class="lab">คะแนนรวมของโต๊ะ</div><div class="val num" id="pTotal">0</div></div>
+  <div class="arena">
+    <div class="cube" id="cube"><div class="face"></div><div class="notch"></div><div class="mark">STIEBEL</div></div>
+  </div>
+  <div class="mine"><div>รอบของคุณ<b class="num" id="pMine">0</b></div><div class="pen">โดนหัก<b class="num" id="pPen">0</b></div></div>
+  <div class="strip" id="pStrip">รอสัญญาณเริ่ม</div>
+  <div class="hint">ลากนิ้ววนรอบคิวบ์ ครบ 1 รอบ = 1 คะแนน</div>
+
+  <div class="ov" id="ovJoin"><h1 style="font-size:28px">STIEBEL CUBE</h1><p>เลือกโต๊ะของคุณ</p>
+    <div class="sel"><select id="jSel"></select></div><button class="btn" id="jBtn">เข้าเกม</button></div>
+  <div class="ov" id="ovStop"><h1>หยุด</h1><p>อย่าขยับ รอสัญญาณเริ่มต่อ</p></div>
+  <div class="ov" id="ovPen"><div class="big">−1</div><h1 style="font-size:40px">ยังหมุนอยู่</h1><p>โดนหัก 1 คะแนน กด "เริ่มใหม่" เมื่อสัญญาณมาเพื่อหมุนต่อ</p><button class="btn" id="penBtn" disabled>รอสัญญาณ…</button></div>
+  <div class="ov" id="ovDone"><p>หมดเวลา</p><h1 style="font-size:36px">โต๊ะ <span id="dTable"></span></h1><div class="big num" id="dTotal">0</div><div class="rank" id="dRank"></div></div>
+</section>
+
+<!-- ================= BOARD ================= -->
+<section id="board" class="page">
+  <div class="head"><div><div class="title">STIEBEL CUBE</div><div class="sub" id="bSub">รอเริ่มรอบ</div></div>
+    <div><div class="bt num" id="bTimer">1:00</div><div class="bs" id="bRound">รอบที่ 1</div></div></div>
+  <div class="list" id="bList"><div class="empty">ยังไม่มีโต๊ะเข้าร่วม</div></div>
+  <div id="bStop">STOP</div>
+  <div id="bWin"><div class="l">ผู้ชนะรอบนี้</div><div class="t" id="wT">โต๊ะ 1</div><div class="s num" id="wS">0 คะแนน</div></div>
+</section>
+
+<!-- ================= ADMIN ================= -->
+<section id="pin" class="page"><h2 style="font-weight:500">ใส่รหัสผู้ควบคุม</h2><input id="pinIn" type="password" inputmode="numeric" maxlength="6"><button class="btn" style="margin-top:4px" id="pinBtn">เข้าสู่ระบบ</button></section>
+<section id="admin" class="page">
+  <h2>ผู้ควบคุมเกม</h2>
+  <div class="st"><div><div class="k">สถานะ</div><div class="v" id="aState">รอเริ่ม</div></div><div style="text-align:right"><div class="k">เวลาที่เหลือ</div><div class="v num" id="aTimer">1:00</div></div><div style="text-align:right"><div class="k">รอบที่</div><div class="v num" id="aRound">1</div></div></div>
+  <div class="ctl">
+    <button class="p" id="aStart">เริ่มรอบ</button>
+    <button class="w" id="aStop">หยุด</button>
+    <button class="w" id="aResume">หมุนต่อ</button>
+    <button id="aEnd">จบรอบ</button>
+  </div>
+  <div class="cfg">
+    <div><label>เวลาเล่น (วินาที)</label><input id="cDur" type="number" value="60"></div>
+    <div><label>หยุดอัตโนมัติที่วินาทีที่</label><input id="cStopAt" type="number" value="30"></div>
+    <div><label>หยุดนาน (วินาที)</label><input id="cStopLen" type="number" value="5"></div>
+  </div>
+  <div class="chk"><input type="checkbox" id="cAuto" checked><label for="cAuto">หยุดอัตโนมัติกลางรอบ (ปิดเพื่อกดหยุดเองตามจังหวะ MC)</label></div>
+  <div class="chk"><input type="checkbox" id="cShowWin" checked><label for="cShowWin">เมื่อจบรอบ ให้จอใหญ่โชว์ผู้ชนะเต็มจอ</label></div>
+  <div class="lnk">
+    <button id="aNew">รอบใหม่ (ล้างคะแนน)</button>
+    <button id="aCsv">ดาวน์โหลด CSV</button>
+    <button onclick="location.hash='#board'">เปิดจอใหญ่</button>
+    <button onclick="location.hash='#qr'">พิมพ์ QR โต๊ะ</button>
+  </div>
+  <div class="sub2">โต๊ะที่เข้าร่วม · <span id="aPlayers">0</span> เครื่อง</div>
+  <table class="tbl" id="aTbl"></table>
+</section>
+
+<!-- ================= QR ================= -->
+<section id="qr" class="page">
+  <div class="bar">จำนวนโต๊ะ <input id="qN" type="number" value="20"> <button id="qGo">สร้าง</button> <button onclick="window.print()">พิมพ์</button> <button onclick="location.hash='#admin'">กลับ</button></div>
+  <div class="cards" id="qCards"></div>
+</section>
+
+<script>
+/* ================= SHARED ================= */
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const gRef = db.ref('game'), tRef = db.ref('tables');
+let offset = 0; db.ref('.info/serverTimeOffset').on('value', s => offset = s.val() || 0);
+const now = () => Date.now() + offset;
+const MAX_TABLES = 60;
+let game = { state: 'idle', round: 1, elapsedBefore: 0, startedAt: 0, config: { duration: 60, stopAt: 30, stopLen: 5, auto: true, showWin: true } };
+
+function elapsed() { // ms running so far
+  if (game.state === 'running' && game.startedAt) return game.elapsedBefore + (now() - game.startedAt);
+  return game.elapsedBefore || 0;
+}
+function remaining() { return Math.max(0, (game.config.duration * 1000) - elapsed()); }
+function fmt(ms) { const s = Math.ceil(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function stateText(s) { return { idle: 'รอเริ่ม', running: 'กำลังหมุน', paused: 'หยุด!', ended: 'หมดเวลา' }[s] || s; }
+function sumTables(v) { // -> [{t, score, n}]
+  const out = [];
+  for (const t in (v || {})) { let score = 0, n = 0; for (const u in v[t]) { score += (v[t][u].score || 0); n++; } out.push({ t: +t, score, n }); }
+  return out.sort((a, b) => b.score - a.score || a.t - b.t);
+}
+
+/* ================= ROUTER ================= */
+const pages = ['player', 'board', 'admin', 'pin', 'qr'];
+function route() {
+  let h = (location.hash || '#player').slice(1);
+  if (h === 'admin' && sessionStorage.adminOk !== '1') h = 'pin';
+  pages.forEach(p => document.getElementById(p).classList.toggle('on', p === h));
+  if (h === 'qr') buildQR();
+  if (h === 'board') startBoard();
+  if (h === 'admin') startAdmin();
+  if (h === 'player') startPlayer();
+}
+window.addEventListener('hashchange', route);
+gRef.on('value', s => { game = Object.assign(game, s.val() || {}); game.config = Object.assign({ duration: 60, stopAt: 30, stopLen: 5, auto: true, showWin: true }, game.config || {}); onGame(); });
+let onGameHandlers = []; function onGame() { onGameHandlers.forEach(f => f()); }
+setInterval(() => { document.querySelectorAll('#pTimer,#bTimer,#aTimer').forEach(e => e.textContent = fmt(remaining())); }, 200);
+
+/* ================= PLAYER ================= */
+let P = { started: false, table: null, uid: null, mine: 0, pen: 0, locked: false, penalized: false, angle: 0, acc: 0, lastA: null, down: false, moves: [], lastRotTs: [] };
+function startPlayer() {
+  if (P.started) return; P.started = true;
+  P.uid = localStorage.cubeUid || (localStorage.cubeUid = Math.random().toString(36).slice(2, 10));
+  const q = new URLSearchParams(location.search).get('table');
+  const t = parseInt(q || localStorage.cubeTable || '', 10);
+  const sel = document.getElementById('jSel');
+  for (let i = 1; i <= MAX_TABLES; i++) sel.add(new Option('โต๊ะ ' + i, i));
+  if (t >= 1 && t <= MAX_TABLES) joinTable(t); else document.getElementById('ovJoin').classList.add('on');
+  document.getElementById('jBtn').onclick = () => { joinTable(+sel.value); document.getElementById('ovJoin').classList.remove('on'); };
+  bindCube();
+  onGameHandlers.push(playerGame);
+  document.getElementById('penBtn').onclick = () => { if (game.state !== 'running') return; P.locked = false; P.penalized = false; document.getElementById('ovPen').classList.remove('on'); strip('กำลังหมุน — ลุย!'); };
+}
+let lastState = null, myRound = null;
+function joinTable(t) {
+  P.table = t; localStorage.cubeTable = t;
+  document.getElementById('pTable').textContent = t; document.getElementById('dTable').textContent = t;
+  tRef.child(t).on('value', s => { let tot = 0; const v = s.val() || {}; for (const u in v) tot += (v[u].score || 0); document.getElementById('pTotal').textContent = tot; document.getElementById('dTotal').textContent = tot; });
+  tRef.on('value', s => { const r = sumTables(s.val()).findIndex(x => x.t === P.table); document.getElementById('dRank').textContent = r >= 0 ? 'อันดับที่ ' + (r + 1) : ''; });
+  push();
+}
+function push() { if (!P.table) return; tRef.child(P.table).child(P.uid).set({ score: P.mine - P.pen, rounds: P.mine, pen: P.pen, ts: firebase.database.ServerValue.TIMESTAMP }); }
+function strip(t) { document.getElementById('pStrip').textContent = t; }
+function playerGame() {
+  const s = game.state;
+  if (myRound !== game.round) { myRound = game.round; P.mine = 0; P.pen = 0; P.acc = 0; P.locked = false; P.penalized = false; render(); if (P.table) push(); }
+  const ovStop = document.getElementById('ovStop'), ovPen = document.getElementById('ovPen'), ovDone = document.getElementById('ovDone');
+  ovDone.classList.toggle('on', s === 'ended');
+  if (s === 'paused' && lastState !== 'paused') {
+    // still moving? check recent movement + short window after
+    const t0 = now(); const recent = P.moves.some(m => t0 - m < 350);
+    const decide = (moving) => { if (moving) { P.pen++; P.penalized = true; P.locked = true; push(); render(); ovPen.classList.add('on'); document.getElementById('penBtn').disabled = true; document.getElementById('penBtn').textContent = 'รอสัญญาณ…'; if (navigator.vibrate) navigator.vibrate([200, 80, 200]); } else { P.locked = true; ovStop.classList.add('on'); } };
+    if (recent) decide(true); else setTimeout(() => { if (game.state !== 'paused') return; decide(P.moves.some(m => now() - m < 650 && m > t0 - 50)); }, 600);
+    strip('หยุด!');
+  }
+  if (s === 'running') {
+    ovStop.classList.remove('on');
+    if (P.penalized) { const b = document.getElementById('penBtn'); b.disabled = false; b.textContent = 'เริ่มใหม่'; strip('กด "เริ่มใหม่" เพื่อหมุนต่อ'); }
+    else { P.locked = false; strip('กำลังหมุน — ลุย!'); }
+  }
+  if (s === 'idle') { ovStop.classList.remove('on'); ovPen.classList.remove('on'); P.locked = true; strip('รอสัญญาณเริ่ม'); }
+  if (s === 'ended') { P.locked = true; ovStop.classList.remove('on'); ovPen.classList.remove('on'); }
+  lastState = s;
+}
+function render() { document.getElementById('pMine').textContent = P.mine; document.getElementById('pPen').textContent = P.pen; }
+function bindCube() {
+  const c = document.getElementById('cube');
+  const ang = e => { const r = c.getBoundingClientRect(); return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)) * 180 / Math.PI; };
+  c.addEventListener('pointerdown', e => { P.down = true; P.lastA = ang(e); c.setPointerCapture(e.pointerId); });
+  const up = () => { P.down = false; P.lastA = null; };
+  c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
+  c.addEventListener('pointermove', e => {
+    if (!P.down || P.lastA === null) return;
+    const a = ang(e); let d = a - P.lastA; if (d > 180) d -= 360; if (d < -180) d += 360; P.lastA = a;
+    if (Math.abs(d) < 0.5) return;
+    const t = now(); P.moves.push(t); if (P.moves.length > 40) P.moves.shift();
+    if (P.locked || game.state !== 'running') return;
+    P.angle += d; c.style.transform = 'rotate(' + P.angle + 'deg)';
+    P.acc += d;
+    while (Math.abs(P.acc) >= 360) {
+      P.acc -= Math.sign(P.acc) * 360;
+      P.lastRotTs = P.lastRotTs.filter(x => t - x < 1000);
+      if (P.lastRotTs.length < 4) { P.lastRotTs.push(t); P.mine++; render(); schedPush(); } // cap 4 rounds/sec
+    }
+  });
+}
+let pushT = null; function schedPush() { if (pushT) return; pushT = setTimeout(() => { pushT = null; push(); }, 250); }
+
+/* ================= BOARD ================= */
+let B = { started: false, rows: {} };
+function startBoard() {
+  if (B.started) return; B.started = true;
+  tRef.on('value', s => renderBoard(sumTables(s.val())));
+  onGameHandlers.push(() => {
+    document.getElementById('bSub').textContent = stateText(game.state) + (game.state === 'running' ? ' — หมุนให้ไว!' : '');
+    document.getElementById('bRound').textContent = 'รอบที่ ' + game.round;
+    document.getElementById('bStop').classList.toggle('on', game.state === 'paused');
+    document.getElementById('bWin').classList.toggle('on', game.state === 'ended' && game.config.showWin && !!B.top);
+  });
+}
+function renderBoard(list) {
+  const el = document.getElementById('bList'); const emp = el.querySelector('.empty'); if (emp) emp.style.display = list.length ? 'none' : 'flex';
+  const show = list.slice(0, 10), seen = {};
+  show.forEach((x, i) => {
+    seen[x.t] = 1; let r = B.rows[x.t];
+    if (!r) { r = document.createElement('div'); r.className = 'row'; r.innerHTML = '<div class="pos"></div><div class="tn">โต๊ะ ' + x.t + '<small></small></div><div class="sc"></div>'; el.appendChild(r); B.rows[x.t] = r; r.style.opacity = 0; requestAnimationFrame(() => r.style.opacity = 1); }
+    r.querySelector('.pos').textContent = i + 1; r.querySelector('.sc').textContent = x.score; r.querySelector('small').textContent = x.n + ' คน';
+    r.style.transform = 'translateY(' + (i * 7.4) + 'vh)'; r.style.zIndex = 10 - i;
+    r.querySelector('.pos').style.color = i === 0 ? 'var(--red)' : ''; r.querySelector('.sc').style.color = i === 0 ? 'var(--red)' : '';
+  });
+  for (const t in B.rows) if (!seen[t]) { B.rows[t].remove(); delete B.rows[t]; }
+  B.top = show[0]; if (B.top) { document.getElementById('wT').textContent = 'โต๊ะ ' + B.top.t; document.getElementById('wS').textContent = B.top.score + ' คะแนน'; }
+}
+
+/* ================= ADMIN ================= */
+document.getElementById('pinBtn').onclick = () => { if (document.getElementById('pinIn').value === ADMIN_PIN) { sessionStorage.adminOk = '1'; route(); } else document.getElementById('pinIn').value = ''; };
+document.getElementById('pinIn').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('pinBtn').click(); });
+let A = { started: false, autoStopped: false, resumeAt: 0 };
+function cfgFromInputs() { return { duration: +cDur.value || 60, stopAt: +cStopAt.value || 30, stopLen: +cStopLen.value || 5, auto: cAuto.checked, showWin: cShowWin.checked }; }
+function startAdmin() {
+  if (A.started) return; A.started = true;
+  ['cDur', 'cStopAt', 'cStopLen', 'cAuto', 'cShowWin'].forEach(id => document.getElementById(id).onchange = () => gRef.child('config').set(cfgFromInputs()));
+  onGameHandlers.push(() => {
+    const s = game.state; aState.textContent = stateText(s); aRound.textContent = game.round;
+    aStart.disabled = s === 'running' || s === 'paused'; aStop.disabled = s !== 'running'; aResume.disabled = s !== 'paused'; aEnd.disabled = s === 'idle' || s === 'ended';
+    if (document.activeElement.tagName !== 'INPUT') { cDur.value = game.config.duration; cStopAt.value = game.config.stopAt; cStopLen.value = game.config.stopLen; cAuto.checked = !!game.config.auto; cShowWin.checked = !!game.config.showWin; }
+  });
+  tRef.on('value', s => { const l = sumTables(s.val()); aPlayers.textContent = l.reduce((a, b) => a + b.n, 0); aTbl.innerHTML = l.map((x, i) => '<tr><td>' + (i + 1) + '</td><td>โต๊ะ ' + x.t + '</td><td>' + x.n + ' คน</td><td>' + x.score + '</td></tr>').join(''); A.list = l; });
+  aStart.onclick = () => { A.autoStopped = false; gRef.update({ state: 'running', startedAt: firebase.database.ServerValue.TIMESTAMP, elapsedBefore: 0, config: cfgFromInputs() }); };
+  aStop.onclick = () => pause(); aResume.onclick = () => resume();
+  aEnd.onclick = () => end();
+  aNew.onclick = () => { if (!confirm('ล้างคะแนนทุกโต๊ะและเริ่มรอบใหม่?')) return; tRef.remove(); gRef.update({ state: 'idle', round: (game.round || 1) + 1, startedAt: 0, elapsedBefore: 0 }); };
+  aCsv.onclick = () => { const rows = [['rank', 'table', 'players', 'score']].concat((A.list || []).map((x, i) => [i + 1, x.t, x.n, x.score])); const b = new Blob(['\ufeff' + rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'stiebel-cube-round' + game.round + '.csv'; a.click(); };
+  setInterval(tick, 150);
+}
+function pause() { if (game.state !== 'running') return; gRef.update({ state: 'paused', elapsedBefore: elapsed(), startedAt: 0 }); }
+function resume() { if (game.state !== 'paused') return; gRef.update({ state: 'running', startedAt: firebase.database.ServerValue.TIMESTAMP }); }
+function end() { gRef.update({ state: 'ended', elapsedBefore: game.config.duration * 1000, startedAt: 0 }); }
+function tick() { // only the admin page drives the timeline
+  if (!A.started) return; const c = game.config;
+  if (game.state === 'running') {
+    const e = elapsed();
+    if (e >= c.duration * 1000) { end(); return; }
+    if (c.auto && !A.autoStopped && e >= c.stopAt * 1000) { A.autoStopped = true; A.resumeAt = now() + c.stopLen * 1000; pause(); }
+  } else if (game.state === 'paused' && A.autoStopped && A.resumeAt && now() >= A.resumeAt) { A.resumeAt = 0; resume(); }
+}
+
+/* ================= QR ================= */
+function buildQR() {
+  const n = +document.getElementById('qN').value || 20; const box = document.getElementById('qCards'); box.innerHTML = '';
+  const base = location.href.split('#')[0].split('?')[0];
+  for (let i = 1; i <= n; i++) {
+    const d = document.createElement('div'); d.className = 'card';
+    d.innerHTML = '<div class="n">STIEBEL CUBE</div><div class="b">โต๊ะ ' + i + '</div><div class="q" id="q' + i + '"></div><div class="i">สแกนเพื่อร่วมเล่น<br>ทุกคนในโต๊ะเล่นพร้อมกันได้<br>หมุนคิวบ์ให้ไว ครบ 1 รอบ = 1 คะแนน</div>';
+    box.appendChild(d); new QRCode(document.getElementById('q' + i), { text: base + '?table=' + i, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
+  }
+}
+document.getElementById('qGo').onclick = buildQR;
+
+route();
+</script>
+</body>
+</html>
