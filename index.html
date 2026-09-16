@@ -211,8 +211,9 @@ input,select{font:inherit}
     <button id="aNew">รอบถัดไป (เก็บผลสะสม)</button>
     <button id="aReset" style="border-color:var(--red)">ล้างทั้งหมด (ทดสอบ)</button>
     <button id="aCsv">ดาวน์โหลด CSV</button>
-    <button onclick="location.hash='#board'">เปิดจอใหญ่</button>
-    <button onclick="location.hash='#qr'">พิมพ์ QR โต๊ะ</button>
+    <button onclick="window.open(location.pathname+'#board','_blank')">เปิดจอใหญ่ ↗</button>
+    <button onclick="window.open(location.pathname,'_blank')">หน้าเกม (ผู้เล่น) ↗</button>
+    <button onclick="window.open(location.pathname+'#qr','_blank')">พิมพ์ QR โต๊ะ ↗</button>
   </div>
   <div class="sub2">โต๊ะที่เข้าร่วม · <span id="aPlayers">0</span> เครื่อง · บันทึกแล้ว <span id="aHist">0</span> รอบ</div>
   <table class="tbl" id="aTbl"></table>
