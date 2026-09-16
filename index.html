@@ -72,7 +72,9 @@ input,select{font:inherit}
 #ovJoin .sel{margin-top:20px;display:flex;gap:10px;align-items:center}
 #ovJoin select{padding:14px 20px;border-radius:12px;border:1px solid var(--dg);background:#111;color:#fff;font-size:20px;font-weight:500}
 #ovDone{background:var(--black)}
-.rank{font-size:14px;color:var(--mg);margin-top:8px}
+.toast{position:fixed;top:0;left:0;right:0;z-index:30;background:#fff;color:var(--black);text-align:center;font-weight:700;font-size:22px;padding:18px 16px calc(18px + env(safe-area-inset-top));transform:translateY(-110%);transition:transform .25s}
+.toast.on{transform:none}
+#bToast{font-size:5vh;padding:2.5vh}
 
 /* ---------- BOARD ---------- */
 #board{flex-direction:column;padding:5vh 6vw;background:var(--black)}
@@ -92,11 +94,18 @@ input,select{font:inherit}
 .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dg);font-size:3vh}
 #bStop{position:fixed;inset:0;background:var(--red);display:none;align-items:center;justify-content:center;font-size:22vh;font-weight:700;letter-spacing:.1em;z-index:5;pointer-events:none}
 #bStop.on{display:flex}
-#bWin{position:fixed;inset:0;background:var(--black);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:6;text-align:center}
+#bWin{position:fixed;inset:0;background:var(--black);display:none;flex-direction:column;align-items:center;z-index:50;text-align:center;padding:9vh 8vw 6vh}
 #bWin.on{display:flex}
-#bWin .l{font-size:3vh;color:var(--mg)}
-#bWin .t{font-size:16vh;font-weight:700;line-height:1.1;color:var(--red)}
-#bWin .s{font-size:5vh;margin-top:2vh}
+#bWin .l{font-size:2.4vh;color:var(--mg);letter-spacing:.08em}
+#bWin .t{font-size:18vh;font-weight:700;line-height:1.05;color:var(--red);margin-top:1vh}
+#bWin .s{font-size:5vh;font-weight:500;margin-top:1vh}
+#bWin .rule{width:14vw;height:.5vh;background:var(--red);margin:4vh 0 3vh}
+#wList{width:min(70vw,900px);display:flex;flex-direction:column;gap:0}
+#wList div{display:grid;grid-template-columns:6vh 1fr auto;align-items:center;gap:2vw;padding:1.4vh 0;border-bottom:1px solid #222;font-size:3.2vh;text-align:left}
+#wList div:last-child{border-bottom:0}
+#wList b{color:var(--dg);font-weight:500}
+#wList .n{font-weight:500}
+#wList .v{font-weight:700;font-variant-numeric:tabular-nums}
 
 /* ---------- ADMIN ---------- */
 #admin{flex-direction:column;overflow:auto;padding:24px;max-width:720px;margin:0 auto;width:100%;background:var(--black)}
@@ -154,9 +163,10 @@ input,select{font:inherit}
 
   <div class="ov" id="ovJoin"><h1 style="font-size:28px">STIEBEL CUBE</h1><p>เลือกโต๊ะของคุณ</p>
     <div class="sel"><select id="jSel"></select></div><button class="btn" id="jBtn">เข้าเกม</button></div>
+  <div class="toast" id="pToast">หมุนต่อได้!</div>
   <div class="ov" id="ovStop"><h1>หยุด</h1><p>อย่าขยับ รอสัญญาณเริ่มต่อ</p></div>
-  <div class="ov" id="ovPen"><div class="big">−1</div><h1 style="font-size:40px">ยังหมุนอยู่</h1><p>โดนหัก 1 คะแนน อย่าขยับ รอสัญญาณหมุนต่อ</p></div>
-  <div class="ov" id="ovDone"><p>หมดเวลา</p><h1 style="font-size:36px">โต๊ะ <span id="dTable"></span></h1><div class="big num" id="dTotal">0</div><div class="rank" id="dRank"></div></div>
+  <div class="ov" id="ovPen"><div class="big" id="penNum">−1</div><h1 style="font-size:40px">ยังหมุนอยู่</h1><p>ยิ่งขยับนานยิ่งโดนหักเพิ่ม หยุดนิ่ง รอสัญญาณหมุนต่อ</p></div>
+  <div class="ov" id="ovDone"><p>หมดเวลา</p><h1 style="font-size:36px">โต๊ะ <span id="dTable"></span></h1><div class="big num" id="dTotal">0</div></div>
 </section>
 
 <!-- ================= BOARD ================= -->
@@ -165,7 +175,8 @@ input,select{font:inherit}
     <div><div class="bt num" id="bTimer">1:00</div><div class="bs" id="bRound">รอบที่ 1</div></div></div>
   <div class="list" id="bList"><div class="empty">ยังไม่มีโต๊ะเข้าร่วม</div></div>
   <div id="bStop">STOP</div>
-  <div id="bWin"><div class="l">โต๊ะที่ได้คะแนนสะสมสูงสุด</div><div class="t" id="wT">โต๊ะ 1</div><div class="s num" id="wS">0 คะแนน</div></div>
+  <div class="toast" id="bToast">GO! หมุนต่อได้</div>
+  <div id="bWin"><div class="l">โต๊ะที่ได้คะแนนสะสมสูงสุด</div><div class="t" id="wT">โต๊ะ 1</div><div class="s num" id="wS">0 คะแนน</div><div class="rule"></div><div id="wList"></div></div>
 </section>
 
 <!-- ================= ADMIN ================= -->
@@ -181,10 +192,15 @@ input,select{font:inherit}
   </div>
   <div class="cfg">
     <div><label>เวลาเล่น (วินาที)</label><input id="cDur" type="number" value="60"></div>
-    <div><label>หยุดอัตโนมัติที่วินาทีที่</label><input id="cStopAt" type="number" value="30"></div>
+    <div><label>หยุดอัตโนมัติทุกๆ (วินาที)</label><input id="cStopAt" type="number" value="15"></div>
     <div><label>หยุดนาน (วินาที)</label><input id="cStopLen" type="number" value="5"></div>
   </div>
-  <div class="chk"><input type="checkbox" id="cAuto" checked><label for="cAuto">หยุดอัตโนมัติกลางรอบ (ปิดเพื่อกดหยุดเองตามจังหวะ MC)</label></div>
+  <div class="cfg" style="margin-top:10px">
+    <div><label>ช่วงตรวจหลัง STOP (วินาที)</label><input id="cPenWin" type="number" step="0.5" value="1.5"></div>
+    <div><label>หักสูงสุด (คะแนน)</label><input id="cPenMax" type="number" value="3"></div>
+    <div><label style="color:var(--dg)">แบ่งช่วงเท่าๆ กัน ยังขยับอยู่ช่วงไหน โดนหักช่วงนั้น</label></div>
+  </div>
+  <div class="chk"><input type="checkbox" id="cAuto" checked><label for="cAuto">หยุดอัตโนมัติซ้ำทุกช่วง เช่น เล่น 60 หยุดทุก 15 นาน 5 → หยุดที่ 15, 30, 45 (ปิดเพื่อกดหยุดเองตามจังหวะ MC)</label></div>
   <div class="chk"><input type="checkbox" id="cShowWin" checked><label for="cShowWin">เมื่อจบรอบ ให้จอใหญ่โชว์โต๊ะคะแนนสะสมสูงสุดเต็มจอ (ติ๊กเฉพาะรอบสุดท้าย)</label></div>
   <div class="lnk">
     <button id="aNew">รอบถัดไป (เก็บผลสะสม)</button>
@@ -223,7 +239,7 @@ function dbErr(e) { alert('เขียนข้อมูลไม่ได้: 
 const TABLES = ['VIP 1', 'VIP 2'].concat(Array.from({ length: 20 }, (_, i) => String(i + 1)));
 const tLabel = t => (/^\d+$/.test(t) ? 'โต๊ะ ' + t : t);
 const tIdx = t => TABLES.indexOf(t);
-let game = { state: 'idle', round: 1, elapsedBefore: 0, startedAt: 0, config: { duration: 60, stopAt: 30, stopLen: 5, auto: true, showWin: true } };
+let game = { state: 'idle', round: 1, elapsedBefore: 0, startedAt: 0, config: { duration: 60, stopAt: 15, stopLen: 5, auto: true, showWin: true, penWin: 1.5, penMax: 3 } };
 
 function elapsed() { // ms running so far
   if (game.state === 'running' && game.startedAt) return game.elapsedBefore + (now() - game.startedAt);
@@ -231,6 +247,7 @@ function elapsed() { // ms running so far
 }
 function remaining() { return Math.max(0, (game.config.duration * 1000) - elapsed()); }
 function fmt(ms) { const s = Math.ceil(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function toast(id) { const el = document.getElementById(id); el.classList.add('on'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 2200); }
 function stateText(s) { return { idle: 'รอเริ่ม', running: 'กำลังหมุน', paused: 'หยุด!', ended: 'หมดเวลา' }[s] || s; }
 function sumTables(v) { // -> [{t, score(total), cur, n}] cur = this round, score = all rounds
   const m = {};
@@ -252,7 +269,7 @@ function route() {
   if (h === 'player') startPlayer();
 }
 window.addEventListener('hashchange', route);
-gRef.on('value', s => { game = Object.assign(game, s.val() || {}); game.config = Object.assign({ duration: 60, stopAt: 30, stopLen: 5, auto: true, showWin: true }, game.config || {}); onGame(); });
+gRef.on('value', s => { game = Object.assign(game, s.val() || {}); game.config = Object.assign({ duration: 60, stopAt: 15, stopLen: 5, auto: true, showWin: true, penWin: 1.5, penMax: 3 }, game.config || {}); onGame(); });
 let onGameHandlers = []; function onGame() { onGameHandlers.forEach(f => f()); }
 function addGameHandler(f) { onGameHandlers.push(f); f(); }
 setInterval(() => { document.querySelectorAll('#pTimer,#bTimer,#aTimer').forEach(e => e.textContent = fmt(remaining())); }, 200);
@@ -281,7 +298,7 @@ function joinTable(t) {
   const upd = () => { const l = sumTables(curTables); const i = l.findIndex(x => x.t === P.table); const x = l[i];
     document.getElementById('pTotal').textContent = x ? x.score : 0; document.getElementById('dTotal').textContent = x ? x.score : 0;
     document.getElementById('pCur').textContent = 'รอบนี้ +' + (x ? x.cur : 0);
-    document.getElementById('dRank').textContent = i >= 0 ? 'อันดับที่ ' + (i + 1) + ' (สะสม ' + (x.score) + ')' : ''; };
+  };
   if (!P.tListening) { P.tListening = true; tRef.on('value', s => { curTables = s.val(); upd(); }); histHandlers.push(upd); }
   upd();
   push();
@@ -295,12 +312,18 @@ function playerGame() {
   ovDone.classList.toggle('on', s === 'ended');
   if (s === 'paused' && lastState !== 'paused') {
     // still moving? check recent movement + short window after
-    const t0 = now(); const recent = P.moves.some(m => t0 - m < 350);
-    const decide = (moving) => { if (moving) { P.pen++; P.penalized = true; P.locked = true; push(); render(); ovPen.classList.add('on'); if (navigator.vibrate) navigator.vibrate([200, 80, 200]); } else { P.locked = true; ovStop.classList.add('on'); } };
-    if (recent) decide(true); else setTimeout(() => { if (game.state !== 'paused') return; decide(P.moves.some(m => now() - m < 650 && m > t0 - 50)); }, 600);
+    const t0 = now(), win = (game.config.penWin || 1.5) * 1000, maxP = Math.max(1, game.config.penMax || 3), tier = win / maxP;
+    P.locked = true; P.penalized = false; let got = 0;
+    const hit = () => { got++; P.pen++; P.penalized = true; push(); render(); ovStop.classList.remove('on'); ovPen.classList.add('on'); document.getElementById('penNum').textContent = '−' + got; if (navigator.vibrate) navigator.vibrate(150); };
+    if (P.moves.some(m => t0 - m < 250)) hit(); else ovStop.classList.add('on');
+    for (let k = 1; k <= maxP; k++) {
+      const from = t0 + (k - 1) * tier, to = t0 + k * tier;
+      setTimeout(() => { if (game.state !== 'paused' || got >= maxP) return; if (P.moves.some(m => m >= from && m < to)) hit(); }, k * tier + 40);
+    }
     strip('หยุด!');
   }
   if (s === 'running') {
+    if (lastState === 'paused') { toast('pToast'); if (navigator.vibrate) navigator.vibrate(120); }
     ovStop.classList.remove('on');
     ovPen.classList.remove('on'); P.locked = false; P.penalized = false; strip('กำลังหมุน — ลุย!');
   }
@@ -340,6 +363,7 @@ function startBoard() {
   addGameHandler(() => {
     document.getElementById('bSub').textContent = stateText(game.state) + (game.state === 'running' ? ' — หมุนให้ไว!' : '');
     document.getElementById('bRound').textContent = 'รอบที่ ' + game.round;
+    if (game.state === 'running' && B.last === 'paused') toast('bToast'); B.last = game.state;
     document.getElementById('bStop').classList.toggle('on', game.state === 'paused');
     document.getElementById('bWin').classList.toggle('on', game.state === 'ended' && game.config.showWin && !!B.top);
   });
@@ -355,33 +379,33 @@ function renderBoard(list) {
     r.querySelector('.pos').style.color = i === 0 ? 'var(--red)' : ''; r.querySelector('.sc').style.color = i === 0 ? 'var(--red)' : '';
   });
   for (const t in B.rows) if (!seen[t]) { B.rows[t].remove(); delete B.rows[t]; }
-  B.top = show[0]; if (B.top) { document.getElementById('wT').textContent = tLabel(B.top.t); document.getElementById('wS').textContent = B.top.score + ' คะแนนสะสม'; }
+  B.top = show[0]; if (B.top) { document.getElementById('wT').textContent = tLabel(B.top.t); document.getElementById('wS').textContent = B.top.score + ' คะแนนสะสม'; document.getElementById('wList').innerHTML = show.slice(1, 6).map((x, i) => '<div><b>' + (i + 2) + '</b><span class="n">' + tLabel(x.t) + '</span><span class="v">' + x.score + '</span></div>').join(''); }
 }
 
 /* ================= ADMIN ================= */
 document.getElementById('pinBtn').onclick = () => { if (document.getElementById('pinIn').value === ADMIN_PIN) { sessionStorage.adminOk = '1'; route(); } else document.getElementById('pinIn').value = ''; };
 document.getElementById('pinIn').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('pinBtn').click(); });
-let A = { started: false, autoStopped: false, resumeAt: 0 };
-function cfgFromInputs() { return { duration: +cDur.value || 60, stopAt: +cStopAt.value || 30, stopLen: +cStopLen.value || 5, auto: cAuto.checked, showWin: cShowWin.checked }; }
+let A = { started: false, nextStop: 0, resumeAt: 0 };
+function cfgFromInputs() { return { duration: +cDur.value || 60, stopAt: +cStopAt.value || 15, stopLen: +cStopLen.value || 5, auto: cAuto.checked, showWin: cShowWin.checked, penWin: +cPenWin.value || 1.5, penMax: +cPenMax.value || 3 }; }
 function startAdmin() {
   if (A.started) return; A.started = true;
-  ['cDur', 'cStopAt', 'cStopLen', 'cAuto', 'cShowWin'].forEach(id => document.getElementById(id).onchange = () => gRef.child('config').set(cfgFromInputs()).catch(dbErr));
+  ['cDur', 'cStopAt', 'cStopLen', 'cAuto', 'cShowWin', 'cPenWin', 'cPenMax'].forEach(id => document.getElementById(id).onchange = () => gRef.child('config').set(cfgFromInputs()).catch(dbErr));
   addGameHandler(() => {
     const s = game.state; aState.textContent = stateText(s); aRound.textContent = game.round;
     aStart.disabled = s === 'running' || s === 'paused'; aStop.disabled = s !== 'running'; aResume.disabled = s !== 'paused'; aEnd.disabled = s === 'idle' || s === 'ended';
-    if (document.activeElement.tagName !== 'INPUT') { cDur.value = game.config.duration; cStopAt.value = game.config.stopAt; cStopLen.value = game.config.stopLen; cAuto.checked = !!game.config.auto; cShowWin.checked = !!game.config.showWin; }
+    if (document.activeElement.tagName !== 'INPUT') { cDur.value = game.config.duration; cStopAt.value = game.config.stopAt; cStopLen.value = game.config.stopLen; cAuto.checked = !!game.config.auto; cShowWin.checked = !!game.config.showWin; cPenWin.value = game.config.penWin; cPenMax.value = game.config.penMax; }
   });
   const drawA = () => { const l = sumTables(curTables); aPlayers.textContent = l.reduce((a, b) => a + b.n, 0); aHist.textContent = Object.keys(hist).length; aTbl.innerHTML = '<tr style="color:var(--mg)"><td></td><td>โต๊ะ</td><td>เครื่อง</td><td>รอบนี้</td><td>สะสม</td></tr>' + l.map((x, i) => '<tr><td>' + (i + 1) + '</td><td>' + tLabel(x.t) + '</td><td>' + x.n + '</td><td>' + x.cur + '</td><td>' + x.score + '</td></tr>').join(''); A.list = l; };
   tRef.on('value', s => { curTables = s.val(); drawA(); }); histHandlers.push(drawA);
-  aStart.onclick = () => { A.autoStopped = false; gRef.update({ state: 'running', startedAt: firebase.database.ServerValue.TIMESTAMP, elapsedBefore: 0, config: cfgFromInputs() }).catch(dbErr); };
-  aStop.onclick = () => pause(); aResume.onclick = () => resume();
+  aStart.onclick = () => { A.nextStop = 0; gRef.update({ state: 'running', startedAt: firebase.database.ServerValue.TIMESTAMP, elapsedBefore: 0, config: cfgFromInputs() }).catch(dbErr); };
+  aStop.onclick = () => { A.resumeAt = 0; pause(); }; aResume.onclick = () => resume();
   aEnd.onclick = () => end();
-  aReset.onclick = () => { if (!confirm('ล้างทุกอย่าง: คะแนนรอบนี้ + ประวัติทุกรอบ แล้วกลับไปรอบที่ 1? (ใช้ตอนทดสอบ)')) return; A.autoStopped = false; tRef.remove().catch(dbErr); hRef.remove().catch(dbErr); gRef.update({ state: 'idle', round: 1, startedAt: 0, elapsedBefore: 0, resetAt: firebase.database.ServerValue.TIMESTAMP }).catch(dbErr); };
+  aReset.onclick = () => { if (!confirm('ล้างทุกอย่าง: คะแนนรอบนี้ + ประวัติทุกรอบ แล้วกลับไปรอบที่ 1? (ใช้ตอนทดสอบ)')) return; A.nextStop = 0; tRef.remove().catch(dbErr); hRef.remove().catch(dbErr); gRef.update({ state: 'idle', round: 1, startedAt: 0, elapsedBefore: 0, resetAt: firebase.database.ServerValue.TIMESTAMP }).catch(dbErr); };
   aNew.onclick = () => {
     if (game.state === 'running' || game.state === 'paused') { alert('กด "จบรอบ" ก่อน'); return; }
     if (!confirm('บันทึกผลรอบที่ ' + game.round + ' เข้าคะแนนสะสม แล้วเริ่มรอบที่ ' + (game.round + 1) + '?')) return;
     const snap = {}; sumTables(curTables).forEach(x => { if (curTables && curTables[x.t]) snap[x.t] = { score: x.cur, n: x.n }; });
-    A.autoStopped = false;
+    A.nextStop = 0;
     hRef.child('round' + game.round).set(snap).then(() => { tRef.remove().catch(dbErr); gRef.update({ state: 'idle', round: (game.round || 1) + 1, startedAt: 0, elapsedBefore: 0 }).catch(dbErr); }).catch(dbErr);
   };
   aCsv.onclick = () => { const rs = Object.keys(hist).sort(); const rows = [['rank', 'table'].concat(rs, ['round' + game.round + ' (current)', 'total'])].concat((A.list || []).map((x, i) => [i + 1, x.t].concat(rs.map(r => (hist[r][x.t] || {}).score || 0), [x.cur, x.score]))); const b = new Blob(['\ufeff' + rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'stiebel-cube-round' + game.round + '.csv'; a.click(); };
@@ -395,8 +419,11 @@ function tick() { // only the admin page drives the timeline
   if (game.state === 'running') {
     const e = elapsed();
     if (e >= c.duration * 1000) { end(); return; }
-    if (c.auto && !A.autoStopped && e >= c.stopAt * 1000) { A.autoStopped = true; A.resumeAt = now() + c.stopLen * 1000; pause(); }
-  } else if (game.state === 'paused' && A.autoStopped && A.resumeAt && now() >= A.resumeAt) { A.resumeAt = 0; resume(); }
+    if (c.auto && c.stopAt > 0) {
+      if (!A.nextStop) A.nextStop = c.stopAt * 1000;
+      if (e >= A.nextStop && A.nextStop < c.duration * 1000 - 1500) { A.nextStop += c.stopAt * 1000; A.resumeAt = now() + c.stopLen * 1000; pause(); }
+    }
+  } else if (game.state === 'paused' && A.resumeAt && now() >= A.resumeAt) { A.resumeAt = 0; resume(); }
 }
 
 /* ================= QR ================= */
