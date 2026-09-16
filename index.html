@@ -26,7 +26,7 @@ input,select{font:inherit}
 /* ---------- PLAYER ---------- */
 #player{flex-direction:column;padding:20px 20px 28px;touch-action:none;user-select:none;-webkit-user-select:none}
 .top{display:flex;justify-content:space-between;align-items:baseline}
-.top .table{font-weight:500;font-size:18px}
+.top .table{font-weight:500;font-size:18px;cursor:pointer}
 .top .table span{color:var(--red);font-weight:700;font-size:26px;margin-left:6px}
 .top .timer{font-size:34px;letter-spacing:.02em}
 .tot{margin-top:26px;text-align:center}
@@ -68,7 +68,7 @@ input,select{font:inherit}
 #ovPen p{color:rgba(255,255,255,.85)}
 .btn{margin-top:32px;padding:16px 40px;border-radius:999px;font-weight:500;font-size:20px;background:var(--white);color:var(--black)}
 .btn:disabled{opacity:.35}
-#ovJoin{background:var(--black)}
+#ovJoin{background:var(--black);z-index:20}
 #ovJoin .sel{margin-top:20px;display:flex;gap:10px;align-items:center}
 #ovJoin select{padding:14px 20px;border-radius:12px;border:1px solid var(--dg);background:#111;color:#fff;font-size:20px;font-weight:500}
 #ovDone{background:var(--black)}
@@ -187,6 +187,7 @@ input,select{font:inherit}
   <div class="chk"><input type="checkbox" id="cAuto" checked><label for="cAuto">หยุดอัตโนมัติกลางรอบ (ปิดเพื่อกดหยุดเองตามจังหวะ MC)</label></div>
   <div class="chk"><input type="checkbox" id="cShowWin" checked><label for="cShowWin">เมื่อจบรอบ ให้จอใหญ่โชว์ผู้ชนะเต็มจอ</label></div>
   <div class="lnk">
+    <button id="aReset" style="border-color:var(--red)">รีเซ็ตคะแนน</button>
     <button id="aNew">รอบใหม่ (ล้างคะแนน)</button>
     <button id="aCsv">ดาวน์โหลด CSV</button>
     <button onclick="location.hash='#board'">เปิดจอใหญ่</button>
@@ -258,16 +259,18 @@ function startPlayer() {
   if (P.started) return; P.started = true;
   P.uid = localStorage.cubeUid || (localStorage.cubeUid = Math.random().toString(36).slice(2, 10));
   const q = new URLSearchParams(location.search).get('table');
-  const t = (q || localStorage.cubeTable || '').trim();
+  const t = (q || '').trim();
   const sel = document.getElementById('jSel');
   TABLES.forEach(x => sel.add(new Option(tLabel(x), x)));
-  if (TABLES.includes(t)) joinTable(t); else document.getElementById('ovJoin').classList.add('on');
+  if (TABLES.includes(t)) joinTable(t); else { if (TABLES.includes(localStorage.cubeTable)) sel.value = localStorage.cubeTable; document.getElementById('ovJoin').classList.add('on'); }
+  document.getElementById('pTableLbl').onclick = () => { if (game.state === 'idle' || game.state === 'ended') { sel.value = P.table || sel.value; document.getElementById('ovJoin').classList.add('on'); } };
   document.getElementById('jBtn').onclick = () => { joinTable(sel.value); document.getElementById('ovJoin').classList.remove('on'); };
   bindCube();
   addGameHandler(playerGame);
 }
 let lastState = null, myRound = null;
 function joinTable(t) {
+  if (P.table && P.table !== t) { tRef.child(P.table).off(); tRef.child(P.table).child(P.uid).remove().catch(() => {}); }
   P.table = t; localStorage.cubeTable = t;
   document.getElementById('pTable').textContent = t; document.getElementById('dTable').textContent = t;
   document.getElementById('pTableLbl').firstChild.textContent = /^\d+$/.test(t) ? 'โต๊ะ' : '';
@@ -279,7 +282,7 @@ function push() { if (!P.table) return; tRef.child(P.table).child(P.uid).set({ s
 function strip(t) { document.getElementById('pStrip').textContent = t; }
 function playerGame() {
   const s = game.state;
-  if (myRound !== game.round) { myRound = game.round; P.mine = 0; P.pen = 0; P.acc = 0; P.locked = false; P.penalized = false; render(); if (P.table) push(); }
+  if (myRound !== game.round + ':' + (game.resetAt || 0)) { myRound = game.round + ':' + (game.resetAt || 0); P.mine = 0; P.pen = 0; P.acc = 0; P.locked = false; P.penalized = false; render(); if (P.table) push(); }
   const ovStop = document.getElementById('ovStop'), ovPen = document.getElementById('ovPen'), ovDone = document.getElementById('ovDone');
   ovDone.classList.toggle('on', s === 'ended');
   if (s === 'paused' && lastState !== 'paused') {
@@ -364,6 +367,7 @@ function startAdmin() {
   aStart.onclick = () => { A.autoStopped = false; gRef.update({ state: 'running', startedAt: firebase.database.ServerValue.TIMESTAMP, elapsedBefore: 0, config: cfgFromInputs() }).catch(dbErr); };
   aStop.onclick = () => pause(); aResume.onclick = () => resume();
   aEnd.onclick = () => end();
+  aReset.onclick = () => { if (!confirm('ล้างคะแนนทุกโต๊ะและกลับไปสถานะรอเริ่ม? (เลขรอบคงเดิม)')) return; A.autoStopped = false; tRef.remove().catch(dbErr); gRef.update({ state: 'idle', startedAt: 0, elapsedBefore: 0, resetAt: firebase.database.ServerValue.TIMESTAMP }).catch(dbErr); };
   aNew.onclick = () => { if (!confirm('ล้างคะแนนทุกโต๊ะและเริ่มรอบใหม่?')) return; tRef.remove().catch(dbErr); gRef.update({ state: 'idle', round: (game.round || 1) + 1, startedAt: 0, elapsedBefore: 0 }).catch(dbErr); };
   aCsv.onclick = () => { const rows = [['rank', 'table', 'players', 'score']].concat((A.list || []).map((x, i) => [i + 1, x.t, x.n, x.score])); const b = new Blob(['\ufeff' + rows.map(r => r.join(',')).join('\n')], { type: 'text/csv' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'stiebel-cube-round' + game.round + '.csv'; a.click(); };
   setInterval(tick, 150);
