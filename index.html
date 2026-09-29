@@ -126,6 +126,10 @@ input,select{font:inherit}
 #bWin .t{font-size:18vh;font-weight:700;line-height:1.05;color:var(--red);margin-top:1vh}
 #bWin .s{font-size:5vh;font-weight:500;margin-top:1vh}
 #bWin .rule{width:14vw;height:.5vh;background:var(--red);margin:4vh 0 3vh}
+#bWin.solo{justify-content:center;padding-top:0}
+#bWin.solo .rule,#bWin.solo #wList{display:none}
+#bWin.solo .t{font-size:24vh}
+#bWin.solo .s{font-size:6vh}
 #wList{width:min(70vw,900px);display:flex;flex-direction:column;gap:0}
 #wList div{display:grid;grid-template-columns:6vh 1fr auto;align-items:center;gap:2vw;padding:1.4vh 0;border-bottom:1px solid #222;font-size:3.2vh;text-align:left}
 #wList div:last-child{border-bottom:0}
@@ -232,7 +236,7 @@ input,select{font:inherit}
     <div><label>จำนวนโต๊ะเข้ารอบชิง</label><input id="cFinalN" type="number" value="5"></div>
   </div>
   <div class="chk"><input type="checkbox" id="cAuto" checked><label for="cAuto">หยุดอัตโนมัติซ้ำทุกช่วง เช่น เล่น 60 หยุดทุก 15 นาน 5 → หยุดที่ 15, 30, 45 (ปิดเพื่อกดหยุดเองตามจังหวะ MC)</label></div>
-  <div class="chk"><input type="checkbox" id="cShowWin" checked><label for="cShowWin">เมื่อจบรอบ ให้จอใหญ่โชว์อันดับ 1 เต็มจอ (รอบแรกเอาติ๊กออก จะได้เห็นเส้นตัด 5 โต๊ะ / รอบชิงติ๊กไว้)</label></div>
+  <div class="chk"><input type="checkbox" id="cShowWin" checked><label for="cShowWin">เมื่อจบรอบ ให้จอใหญ่โชว์ผลเต็มจอ (รอบแรกเอาติ๊กออก จะได้เห็นเส้นตัด / รอบชิงติ๊กไว้)</label> <span style="margin-left:auto;display:flex;align-items:center;gap:8px;white-space:nowrap">โชว์ <input id="cWinN" type="number" min="1" max="10" value="1" style="width:64px;padding:8px;border-radius:8px;border:1px solid #333;background:#111;color:#fff;font-size:16px;text-align:center"> อันดับ</span></div>
   <div class="lnk">
     <button id="aNew" class="">เข้ารอบชิง (Top <span id="aNewN">5</span>)</button>
     <button id="aReset" style="border-color:var(--red)">ล้างทั้งหมด (ทดสอบ)</button>
@@ -271,7 +275,7 @@ function dbErr(e) { alert('เขียนข้อมูลไม่ได้: 
 const TABLES = ['1', '2', 'VIP 1', 'VIP 2'].concat(Array.from({ length: 18 }, (_, i) => String(i + 5)));
 const tLabel = t => (/^\d+$/.test(t) ? 'โต๊ะ ' + t : t);
 const tIdx = t => TABLES.indexOf(t);
-let game = { state: 'idle', round: 1, elapsedBefore: 0, startedAt: 0, config: { duration: 60, stopAt: 15, stopLen: 5, auto: true, showWin: true, penWin: 1.5, penMax: 3, finalN: 5 } };
+let game = { state: 'idle', round: 1, elapsedBefore: 0, startedAt: 0, config: { duration: 60, stopAt: 15, stopLen: 5, auto: true, showWin: true, penWin: 1.5, penMax: 3, finalN: 5, winN: 1 } };
 
 function elapsed() { // ms running so far
   if (game.state === 'running' && game.startedAt) return game.elapsedBefore + (now() - game.startedAt);
@@ -407,6 +411,8 @@ function startBoard() {
     if (game.state === 'running' && B.last === 'paused') toast('bToast'); B.last = game.state;
     document.getElementById('bStop').classList.toggle('on', game.state === 'paused');
     document.getElementById('wL').textContent = isFinal() ? 'ผู้ชนะรอบชิงชนะเลิศ' : 'อันดับ 1 รอบนี้';
+    document.getElementById('bWin').classList.toggle('solo', (game.config.winN || 1) <= 1);
+    if (curTables !== undefined) renderBoard(sumTables(curTables));
     document.getElementById('bWin').classList.toggle('on', game.state === 'ended' && game.config.showWin && !!B.top);
   });
 }
@@ -423,21 +429,21 @@ function renderBoard(list) {
     r.querySelector('.pos').style.color = i === 0 ? 'var(--red)' : ''; r.querySelector('.sc').style.color = i === 0 ? 'var(--red)' : '';
   });
   for (const t in B.rows) if (!seen[t]) { B.rows[t].remove(); delete B.rows[t]; }
-  B.top = show[0]; if (B.top) { document.getElementById('wT').textContent = tLabel(B.top.t); document.getElementById('wS').textContent = B.top.score + ' คะแนน'; document.getElementById('wList').innerHTML = show.slice(1, 6).map((x, i) => '<div><b>' + (i + 2) + '</b><span class="n">' + tLabel(x.t) + '</span><span class="v">' + x.score + '</span></div>').join(''); }
+  B.top = show[0]; if (B.top) { document.getElementById('wT').textContent = tLabel(B.top.t); document.getElementById('wS').textContent = B.top.score + ' คะแนน'; const wn = game.config.winN || 1; document.getElementById('wList').innerHTML = show.slice(1, wn).map((x, i) => '<div><b>' + (i + 2) + '</b><span class="n">' + tLabel(x.t) + '</span><span class="v">' + x.score + '</span></div>').join(''); }
 }
 
 /* ================= ADMIN ================= */
 document.getElementById('pinBtn').onclick = () => { if (document.getElementById('pinIn').value === ADMIN_PIN) { sessionStorage.adminOk = '1'; route(); } else document.getElementById('pinIn').value = ''; };
 document.getElementById('pinIn').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('pinBtn').click(); });
 let A = { started: false, nextStop: 0, resumeAt: 0 };
-function cfgFromInputs() { return { duration: +cDur.value || 60, stopAt: +cStopAt.value || 15, stopLen: +cStopLen.value || 5, auto: cAuto.checked, showWin: cShowWin.checked, penWin: +cPenWin.value || 1.5, penMax: +cPenMax.value || 3, finalN: +cFinalN.value || 5 }; }
+function cfgFromInputs() { return { duration: +cDur.value || 60, stopAt: +cStopAt.value || 15, stopLen: +cStopLen.value || 5, auto: cAuto.checked, showWin: cShowWin.checked, penWin: +cPenWin.value || 1.5, penMax: +cPenMax.value || 3, finalN: +cFinalN.value || 5, winN: Math.max(1, +cWinN.value || 1) }; }
 function startAdmin() {
   if (A.started) return; A.started = true;
-  ['cDur', 'cStopAt', 'cStopLen', 'cAuto', 'cShowWin', 'cPenWin', 'cPenMax', 'cFinalN'].forEach(id => document.getElementById(id).onchange = () => gRef.child('config').set(cfgFromInputs()).catch(dbErr));
+  ['cDur', 'cStopAt', 'cStopLen', 'cAuto', 'cShowWin', 'cPenWin', 'cPenMax', 'cFinalN', 'cWinN'].forEach(id => document.getElementById(id).onchange = () => gRef.child('config').set(cfgFromInputs()).catch(dbErr));
   addGameHandler(() => {
     const s = game.state; aState.textContent = stateText(s); aRound.textContent = isFinal() ? 'ชิง' : game.round; aNewN.textContent = game.config.finalN || 5;
     aStart.disabled = s === 'running' || s === 'paused'; aStop.disabled = s !== 'running'; aResume.disabled = s !== 'paused'; aEnd.disabled = s === 'idle' || s === 'ended';
-    if (document.activeElement.tagName !== 'INPUT') { cDur.value = game.config.duration; cStopAt.value = game.config.stopAt; cStopLen.value = game.config.stopLen; cAuto.checked = !!game.config.auto; cShowWin.checked = !!game.config.showWin; cPenWin.value = game.config.penWin; cPenMax.value = game.config.penMax; cFinalN.value = game.config.finalN || 5; }
+    if (document.activeElement.tagName !== 'INPUT') { cDur.value = game.config.duration; cStopAt.value = game.config.stopAt; cStopLen.value = game.config.stopLen; cAuto.checked = !!game.config.auto; cShowWin.checked = !!game.config.showWin; cPenWin.value = game.config.penWin; cPenMax.value = game.config.penMax; cFinalN.value = game.config.finalN || 5; cWinN.value = game.config.winN || 1; }
   });
   const drawA = () => { const l = sumTables(curTables); aPlayers.textContent = l.reduce((a, b) => a + b.n, 0); aFin.textContent = isFinal() ? 'รอบชิง: ' + game.finalists.map(tLabel).join(', ') : 'รอบแรก — ' + (game.config.finalN || 5) + ' อันดับแรกเข้ารอบชิง'; aTbl.innerHTML = '<tr style="color:var(--mg)"><td></td><td>โต๊ะ</td><td>เครื่อง</td><td>คะแนน</td></tr>' + l.map((x, i) => '<tr' + (!isFinal() && i >= (game.config.finalN || 5) ? ' style="opacity:.5"' : '') + '><td>' + (i + 1) + '</td><td>' + tLabel(x.t) + '</td><td>' + x.n + '</td><td>' + x.score + '</td></tr>').join(''); A.list = l; };
   tRef.on('value', s => { curTables = s.val(); drawA(); }); histHandlers.push(drawA);
