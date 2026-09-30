@@ -382,7 +382,7 @@ function startAdmin() {
     aPullMsg.textContent = 'กำลังดึง…';
     try {
       const r = await fetch(u + '/rsvps.json'); const data = await r.json() || {};
-      let rows = Object.values(data).filter(x => x && x.name);
+      let rows = Object.values(data).filter(x => x && x.name && !x.mergeTo);
       if (aOnlyIn.checked) rows = rows.filter(x => x.checkedIn);
       const list = rows.map(x => ({ n: String(x.name).trim(), c: String(x.company || '').trim(), t: String(x.table || '').trim() }));
       if (!list.length) { aPullMsg.textContent = 'ไม่พบรายชื่อ (ลองเอาติ๊ก "เฉพาะคนเช็กอิน" ออก)'; return; }
