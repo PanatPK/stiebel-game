@@ -169,8 +169,11 @@ textarea{width:100%;min-height:110px;padding:12px;border-radius:10px;border:1px 
   <h2>ควบคุม Lucky Draw</h2>
 
   <div class="card"><h3>รางวัลรอบนี้</h3>
-    <div class="row"><input type="text" id="aPrize" placeholder="เช่น รางวัลที่ 1 — เครื่องทำน้ำอุ่น X-Series"><button class="b w" id="aSetPrize">ตั้งเป็นรางวัลปัจจุบัน</button></div>
+    <div class="row"><select id="aPrizeSel" style="flex:1;min-width:220px;padding:12px;border-radius:10px;border:1px solid #333;background:#111;color:#fff;font-size:16px"></select></div>
+    <div class="row" style="margin-top:10px"><input type="text" id="aPrize" placeholder="หรือพิมพ์ชื่อรางวัลเอง"><button class="b w" id="aSetPrize">ตั้งเป็นรางวัลปัจจุบัน</button></div>
     <div class="row" style="margin-top:12px"><button class="b p" id="aSpin">สุ่มจากหน้านี้ (ไม่ต้องใช้ปุ่มหมุน)</button><button class="b" id="aClear">ล้างจอผลลัพธ์</button><button class="b" onclick="window.open(location.pathname,'_blank')">เปิดจอใหญ่ ↗</button><button class="b" onclick="window.open(location.pathname+'#dial','_blank')">หน้าปุ่มหมุน ↗</button></div>
+    <div class="row" style="margin-top:12px"><label class="chk"><input type="checkbox" id="aHideReel"> ซ่อนรายชื่อบนจอใหญ่ (ใช้ตอนแจกรางวัลจากเกมอื่น — เหลือโลโก้กับชื่อรางวัล)</label></div>
+    <div class="row" style="margin-top:10px"><input type="text" id="aManN" placeholder="ประกาศผู้ชนะเอง: ชื่อ" style="flex:1"><input type="text" id="aManC" placeholder="บริษัท / โต๊ะ (ไม่บังคับ)" style="flex:1"><button class="b w" id="aManGo">ขึ้นจอ + เอฟเฟกต์</button></div>
     <div class="muted">สถานะ: <span id="aState">—</span> · ในถัง <b class="num" id="aPool">0</b> · ได้รางวัลแล้ว <b class="num" id="aWon">0</b></div>
   </div>
 
@@ -245,6 +248,9 @@ function startScreen() {
     document.getElementById('reveal').classList.toggle('on', meta.state === 'done' && !!meta.last);
     if (meta.state === 'done' && meta.last) { rName.textContent = meta.last.n; rComp.textContent = meta.last.c || ''; rTable.textContent = tLabel(meta.last.t); rPrize.textContent = meta.last.prize || ''; }
     if (meta.state === 'idle') { document.getElementById('glow').classList.remove('on'); }
+    document.getElementById('reel').style.visibility = meta.hideReel ? 'hidden' : 'visible';
+    document.getElementById('sPool').parentElement.style.display = meta.hideReel ? 'none' : '';
+    if (meta.fx && meta.fx !== S.lastFx) { S.lastFx = meta.fx; if (meta.state === 'done') confetti(); }
   });
   requestAnimationFrame(tickScreen);
   window.addEventListener('resize', () => { S.items.forEach(i => i.remove()); S.items = []; });
@@ -353,6 +359,16 @@ function startDial() {
 }
 
 /* ================= ADMIN ================= */
+const PRIZES = [
+  'เสื้อ BGPU Jersey ฤดูกาล 2025/2026',
+  'เสื้อ BGPU Jersey ฤดูกาล 2026/2027 พร้อมลายเซ็นนักเตะ',
+  'หัวฝักบัว STIEBEL ELTRON รุ่น Aqua Neutral',
+  'เครื่องทำน้ำอุ่น STIEBEL ELTRON รุ่น AQX 35E',
+  'เครื่องทำน้ำอุ่น STIEBEL ELTRON รุ่น WSX 35E',
+  'เครื่องกรองน้ำ STIEBEL ELTRON รุ่น Cloud',
+  'เครื่องกรองน้ำ STIEBEL ELTRON รุ่น Fountain 7S สี Copper Gold',
+  'เครื่องกรองน้ำ STIEBEL ELTRON รุ่น Snow Pro'
+];
 document.getElementById('pinBtn').onclick = () => { if (pinIn.value === ADMIN_PIN) { sessionStorage.drawOk = '1'; route(); } else pinIn.value = ''; };
 pinIn.addEventListener('keydown', e => { if (e.key === 'Enter') pinBtn.click(); });
 function parseLines(txt) {
@@ -366,10 +382,14 @@ function saveNames(list, replace) {
 function startAdmin() {
   if (A.on) return; A.on = true;
   if (localStorage.drawUrl) aUrl.value = localStorage.drawUrl;
+  aPrizeSel.add(new Option('— เลือกรางวัลจากรายการ —', ''));
+  PRIZES.forEach(p => aPrizeSel.add(new Option(p, p)));
+  aPrizeSel.onchange = () => { if (aPrizeSel.value) { aPrize.value = aPrizeSel.value; D.child('meta').update({ prize: aPrizeSel.value }).catch(dbErr); } };
   handlers.push(() => {
     aState.textContent = { idle: 'พร้อม', spinning: 'กำลังสุ่ม', done: 'โชว์ผลอยู่' }[meta.state] || meta.state;
     aPool.textContent = pool().length; aWon.textContent = winners.length; aN.textContent = names.length;
     if (document.activeElement !== aPrize) aPrize.value = meta.prize || '';
+    aHideReel.checked = !!meta.hideReel;
     const w = new Set(winners.map(x => x.id));
     aList.innerHTML = names.map((x, i) => '<tr' + (w.has(x.id) ? ' style="opacity:.4"' : '') + '><td>' + (i + 1) + '</td><td>' + x.n + '</td><td>' + (x.c || '') + '</td><td>' + tLabel(x.t) + '</td></tr>').join('');
     aWins.innerHTML = winners.map((x, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + x.n + '</b><br><span style="color:var(--mg)">' + (x.c || '') + (x.t ? ' · ' + tLabel(x.t) : '') + '</span></td><td>' + (x.prize || '') + '</td></tr>').join('');
@@ -377,6 +397,8 @@ function startAdmin() {
   aSetPrize.onclick = () => D.child('meta').update({ prize: aPrize.value.trim() }).catch(dbErr);
   aSpin.onclick = () => { if (!pool().length) return alert('ไม่มีรายชื่อในถัง'); D.child('cmd').set({ type: 'spin', id: uid(), seed: Math.floor(Math.random() * 233280), strength: 0.7, at: firebase.database.ServerValue.TIMESTAMP }).catch(dbErr); };
   aClear.onclick = () => D.child('meta').update({ state: 'idle', last: null }).catch(dbErr);
+  aHideReel.onchange = () => D.child('meta').update({ hideReel: aHideReel.checked }).catch(dbErr);
+  aManGo.onclick = () => { const n = aManN.value.trim(); if (!n) return; const rec = { id: 'manual-' + uid(), n, c: aManC.value.trim(), t: '', prize: meta.prize || '', at: now(), manual: true }; D.child('winners').push(rec).catch(dbErr); D.child('meta').update({ state: 'done', last: rec, fx: uid() }).catch(dbErr); aManN.value = ''; aManC.value = ''; };
   aPull.onclick = async () => {
     const u = aUrl.value.trim().replace(/\/$/, ''); if (!u) return; localStorage.drawUrl = u;
     aPullMsg.textContent = 'กำลังดึง…';
