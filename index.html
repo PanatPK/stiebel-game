@@ -276,7 +276,7 @@ input,select{font:inherit}
 
 <!-- ================= QR ================= -->
 <section id="qr" class="page">
-  <div class="bar">โต๊ะ 1–21 · พิมพ์ได้เลย หน้าละโต๊ะ ขนาด A5 <button onclick="window.print()">พิมพ์ / บันทึก PDF</button> <button onclick="location.hash='#admin'">กลับ</button></div>
+  <div class="bar">โต๊ะ 1–14 · พิมพ์ได้เลย หน้าละโต๊ะ ขนาด A5 <button onclick="window.print()">พิมพ์ / บันทึก PDF</button> <button onclick="location.hash='#admin'">กลับ</button></div>
   <div class="cards" id="qCards"></div>
 </section>
 
@@ -297,7 +297,7 @@ let histHandlers = []; function onHist() { histHandlers.forEach(f => f()); }
 let offset = 0; db.ref('.info/serverTimeOffset').on('value', s => offset = s.val() || 0);
 const now = () => Date.now() + offset;
 function dbErr(e) { alert('เขียนข้อมูลไม่ได้: ' + (e && e.message ? e.message : e) + '\n\nเช็ก Firebase → Realtime Database → Rules ว่า write เป็น true'); }
-const TABLES = Array.from({ length: 21 }, (_, i) => String(i + 1));
+const TABLES = Array.from({ length: 14 }, (_, i) => String(i + 1));
 const tLabel = t => (/^\d+$/.test(t) ? 'โต๊ะ ' + t : t);
 const tIdx = t => TABLES.indexOf(t);
 let game = { state: 'idle', round: 1, elapsedBefore: 0, startedAt: 0, config: { duration: 60, stopAt: 15, stopLen: 5, auto: true, showWin: true, penWin: 1.5, penMax: 3, finalN: 5, winN: 1 } };
