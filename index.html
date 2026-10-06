@@ -318,6 +318,10 @@ function sumTables(v) { // -> [{t, score, cur, n}] this round only (round 1 scor
   if (isFinal()) game.finalists.forEach(t => { if (!m[t]) m[t] = { t, score: 0, cur: 0, n: 0 }; });
   return Object.values(m).sort((a, b) => b.score - a.score || tIdx(a.t) - tIdx(b.t));
 }
+function pickFinalists(list, N) { // นับเป็นอันดับคะแนน: คะแนนที่ต่างกัน N ค่าแรก ใครอยู่ในคะแนนเหล่านั้นเข้าหมด (เท่ากันไม่ตัด)
+  const scores = [...new Set(list.map(x => x.score))].sort((a, b) => b - a).slice(0, N);
+  return list.filter(x => scores.includes(x.score)).map(x => x.t);
+}
 function roundName() { return isFinal() ? 'รอบชิงชนะเลิศ' : 'รอบที่ ' + game.round; }
 let curTables = null;
 
@@ -443,9 +447,9 @@ function startBoard() {
 }
 function renderBoard(list) {
   const el = document.getElementById('bList'); const emp = el.querySelector('.empty'); if (emp) emp.style.display = list.length ? 'none' : 'flex';
-  const show = list.slice(0, 10), seen = {}; const N = game.config.finalN || 5;
+  const seen = {}; const N0 = game.config.finalN || 5; const N = isFinal() ? N0 : pickFinalists(list, N0).length; const show = list.slice(0, Math.max(10, N));
   let cl = el.querySelector('.cutline'); if (!cl) { cl = document.createElement('div'); cl.className = 'cutline'; cl.innerHTML = '<span>เข้ารอบชิง ' + N + ' โต๊ะ</span>'; el.appendChild(cl); }
-  cl.style.display = (!isFinal() && list.length > N) ? 'block' : 'none'; cl.style.transform = 'translateY(' + (N * 7.4 - 0.4) + 'vh)'; cl.querySelector('span').textContent = 'เข้ารอบชิง ' + N + ' โต๊ะ';
+  cl.style.display = (!isFinal() && list.length > N) ? 'block' : 'none'; cl.style.transform = 'translateY(' + (N * 7.4 - 0.4) + 'vh)'; cl.querySelector('span').textContent = 'เข้ารอบชิง ' + N + ' โต๊ะ' + (N > N0 ? ' (คะแนนเท่ากัน)' : '');
   show.forEach((x, i) => {
     seen[x.t] = 1; let r = B.rows[x.t];
     if (!r) { r = document.createElement('div'); r.className = 'row'; r.innerHTML = '<div class="pos"></div><div class="tn">' + tLabel(x.t) + '<small></small></div><div class="sc"></div>'; el.appendChild(r); B.rows[x.t] = r; r.style.opacity = 0; requestAnimationFrame(() => r.style.opacity = 1); }
@@ -470,7 +474,7 @@ function startAdmin() {
     aStart.disabled = s === 'running' || s === 'paused'; aStop.disabled = s !== 'running'; aResume.disabled = s !== 'paused'; aEnd.disabled = s === 'idle' || s === 'ended';
     if (document.activeElement.tagName !== 'INPUT') { cDur.value = game.config.duration; cStopAt.value = game.config.stopAt; cStopLen.value = game.config.stopLen; cAuto.checked = !!game.config.auto; cShowWin.checked = !!game.config.showWin; cPenWin.value = game.config.penWin; cPenMax.value = game.config.penMax; cFinalN.value = game.config.finalN || 5; cWinN.value = game.config.winN || 1; }
   });
-  const drawA = () => { const l = sumTables(curTables); aPlayers.textContent = l.reduce((a, b) => a + b.n, 0); aFin.textContent = isFinal() ? 'รอบชิง: ' + game.finalists.map(tLabel).join(', ') : 'รอบแรก — ' + (game.config.finalN || 5) + ' อันดับแรกเข้ารอบชิง'; aTbl.innerHTML = '<tr style="color:var(--mg)"><td></td><td>โต๊ะ</td><td>เครื่อง</td><td>คะแนน</td></tr>' + l.map((x, i) => '<tr' + (!isFinal() && i >= (game.config.finalN || 5) ? ' style="opacity:.5"' : '') + '><td>' + (i + 1) + '</td><td>' + tLabel(x.t) + '</td><td>' + x.n + '</td><td>' + x.score + '</td></tr>').join(''); A.list = l; };
+  const drawA = () => { const l = sumTables(curTables); aPlayers.textContent = l.reduce((a, b) => a + b.n, 0); aFin.textContent = isFinal() ? 'รอบชิง: ' + game.finalists.map(tLabel).join(', ') : 'รอบแรก — ' + (game.config.finalN || 5) + ' อันดับแรกเข้ารอบชิง'; aTbl.innerHTML = '<tr style="color:var(--mg)"><td></td><td>โต๊ะ</td><td>เครื่อง</td><td>คะแนน</td></tr>' + l.map((x, i) => '<tr' + (!isFinal() && i >= pickFinalists(l, game.config.finalN || 5).length ? ' style="opacity:.5"' : '') + '><td>' + (i + 1) + '</td><td>' + tLabel(x.t) + '</td><td>' + x.n + '</td><td>' + x.score + '</td></tr>').join(''); A.list = l; };
   tRef.on('value', s => { curTables = s.val(); drawA(); }); histHandlers.push(drawA);
   aStart.onclick = () => { A.nextStop = 0; gRef.update({ state: 'running', startedAt: firebase.database.ServerValue.TIMESTAMP, elapsedBefore: 0, config: cfgFromInputs() }).catch(dbErr); };
   aStop.onclick = () => { A.resumeAt = 0; pause(); }; aResume.onclick = () => resume();
@@ -479,9 +483,9 @@ function startAdmin() {
   aNew.onclick = () => {
     if (game.state === 'running' || game.state === 'paused') { alert('กด "จบรอบ" ก่อน'); return; }
     if (isFinal()) { alert('อยู่ในรอบชิงแล้ว ถ้าจะเริ่มใหม่กด "ล้างทั้งหมด"'); return; }
-    const N = game.config.finalN || 5; const list = sumTables(curTables); const fin = list.slice(0, N).map(x => x.t);
+    const N = game.config.finalN || 5; const list = sumTables(curTables); const fin = pickFinalists(list, N);
     if (fin.length < 2) { alert('ยังไม่มีคะแนนพอจัดอันดับ'); return; }
-    if (!confirm('จบรอบที่ ' + game.round + ' — โต๊ะที่เข้ารอบชิง: ' + fin.map(tLabel).join(', ') + '\n\nคะแนนรอบแรกจะไม่นับ รอบชิงเริ่มที่ 0 ทุกโต๊ะ ต่อไหม?')) return;
+    if (!confirm('จบรอบที่ ' + game.round + ' — โต๊ะที่เข้ารอบชิง ' + fin.length + ' โต๊ะ' + (fin.length > N ? ' (มีคะแนนเท่ากัน นับ ' + N + ' อันดับคะแนน)' : '') + ': ' + fin.map(tLabel).join(', ') + '\n\nคะแนนรอบแรกจะไม่นับ รอบชิงเริ่มที่ 0 ทุกโต๊ะ ต่อไหม?')) return;
     const snap = {}; list.forEach(x => { snap[x.t] = { score: x.cur, n: x.n }; });
     A.nextStop = 0;
     hRef.child('round' + game.round).set(snap).then(() => { tRef.remove().catch(dbErr); gRef.update({ state: 'idle', round: (game.round || 1) + 1, finalists: fin, startedAt: 0, elapsedBefore: 0 }).catch(dbErr); }).catch(dbErr);
