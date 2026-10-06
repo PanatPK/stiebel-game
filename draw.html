@@ -195,8 +195,8 @@ textarea{width:100%;min-height:110px;padding:12px;border-radius:10px;border:1px 
 
   <div class="card"><h3>รายชื่อ — จากระบบเช็กอิน</h3>
     <div class="row"><input type="url" id="aUrl" placeholder="Firebase Database URL ของระบบเชิญ เช่น https://x-clusive-night-default-rtdb.asia-southeast1.firebasedatabase.app"><button class="b w" id="aPull">ดึงรายชื่อ</button></div>
-    <div class="row" style="margin-top:10px"><label class="chk"><input type="checkbox" id="aOnlyIn" checked> เฉพาะคนที่เช็กอินแล้ว</label><label class="chk"><input type="checkbox" id="aReplace" checked> แทนที่รายชื่อเดิม</label></div>
-    <div class="muted" id="aPullMsg">ดึงแล้วจะเห็นชื่อ บริษัท และโต๊ะ ตามที่กรอกไว้ในระบบเชิญ</div>
+    <div class="row" style="margin-top:10px"><label class="chk"><input type="checkbox" id="aOnlyIn"> เฉพาะคนที่เช็กอินแล้ว (ไม่ติ๊ก = ทุกคนที่ยืนยันเข้าร่วม)</label><label class="chk"><input type="checkbox" id="aReplace" checked> แทนที่รายชื่อเดิม</label></div>
+    <div class="muted" id="aPullMsg">ดึงเฉพาะคนที่ตอบรับ "เข้าร่วม" ในระบบเชิญ (คนที่รวมรายชื่อซ้ำแล้วจะไม่ซ้ำ)</div>
   </div>
 
   <div class="card"><h3>รายชื่อ — จากไฟล์ Excel / CSV หรือวางข้อความ</h3>
@@ -427,11 +427,11 @@ function startAdmin() {
     aPullMsg.textContent = 'กำลังดึง…';
     try {
       const r = await fetch(u + '/rsvps.json'); const data = await r.json() || {};
-      let rows = Object.values(data).filter(x => x && x.name && !x.mergeTo);
+      let rows = Object.values(data).filter(x => x && x.name && !x.mergeTo && x.attending === 'yes'); // เฉพาะคนที่ยืนยันเข้าร่วมงาน
       if (aOnlyIn.checked) rows = rows.filter(x => x.checkedIn);
       const list = rows.map(x => ({ n: String(x.name).trim(), c: String(x.company || '').trim(), t: String(x.table || '').trim() }));
       if (!list.length) { aPullMsg.textContent = 'ไม่พบรายชื่อ (ลองเอาติ๊ก "เฉพาะคนเช็กอิน" ออก)'; return; }
-      saveNames(list, aReplace.checked); aPullMsg.textContent = 'ดึงมา ' + list.length + ' รายชื่อ';
+      saveNames(list, aReplace.checked); aPullMsg.textContent = 'ดึงมา ' + list.length + ' รายชื่อ (' + (aOnlyIn.checked ? 'เช็กอินแล้ว' : 'ยืนยันเข้าร่วมทั้งหมด') + ')';
     } catch (e) { aPullMsg.textContent = 'ดึงไม่ได้: ' + e.message + ' — เช็ก URL และ Rules (.read ต้องเป็น true)'; }
   };
   aAdd.onclick = () => { const l = parseLines(aPaste.value); if (!l.length) return; saveNames(l, false); aPaste.value = ''; };
