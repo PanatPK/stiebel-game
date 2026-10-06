@@ -74,6 +74,15 @@ input,select,textarea{font:inherit}
 #fx{position:fixed;inset:0;pointer-events:none;z-index:60}
 .glow{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 60%,rgba(186,12,47,.35),transparent 60%);opacity:0;transition:opacity .6s;pointer-events:none}
 .glow.on{opacity:1}
+@media (min-aspect-ratio: 2/1){
+  .reel{width:70vw;height:52vh}
+  .item .n{font-size:6.6vh}
+  .item .c{font-size:2.6vh}
+  #screen .head{padding:0 2vw}
+  #screen .slogo{height:5.4vh}
+  .xtitle.dark{font-size:3vh}
+  #reveal .n{font-size:17vh}
+}
 #sAdmin{position:fixed;right:2vw;bottom:2vh;z-index:70;font-size:1.8vh;color:var(--dg);padding:1vh 1.6vw;border:1px solid #333;border-radius:99px;opacity:.5}
 
 /* ---------- DIAL ---------- */
@@ -223,6 +232,8 @@ function dbErr(e) { alert('เขียนข้อมูลไม่ได้: 
 let S = { on: false, pos: 0, list: [], spin: null, items: [], lastT: 0 };
 let Dl = { on: false, angle: 0, lastA: null, down: false, vel: 0, samples: [], lastPush: 0, energy: 0 };
 let A = { on: false };
+const SPIN_STALE = 20000; // ถ้าสถานะ 'กำลังสุ่ม' ค้างเกินนี้ ถือว่าหลุด (จอใหญ่ปิดกลางคัน)
+function spinStuck() { return meta.state === 'spinning' && (!meta.spinAt || now() - meta.spinAt > SPIN_STALE); }
 let names = [], winners = [], meta = { prize: '', state: 'idle' }, live = { v: 0, t: 0 }, cmd = null;
 const pool = () => { const w = new Set(winners.map(x => x.id)); return names.filter(x => !w.has(x.id)); };
 const handlers = []; const emit = () => handlers.forEach(f => f());
@@ -255,7 +266,8 @@ function startScreen() {
     document.getElementById('reveal').classList.toggle('on', meta.state === 'done' && !!meta.last);
     if (meta.state === 'done' && meta.last) { rName.textContent = meta.last.n; rComp.textContent = meta.last.c || ''; rTable.textContent = tLabel(meta.last.t); rPrize.textContent = meta.last.prize || ''; requestAnimationFrame(() => { fitText(rName, 15, 5); fitText(rComp, 5, 2.5); }); }
     if (meta.state === 'idle') { document.getElementById('glow').classList.remove('on'); }
-    document.getElementById('screen').classList.toggle('noreel', !!meta.hideReel);
+    if (spinStuck() && !S.spin) D.child('meta').update({ state: 'idle' }).catch(() => {});
+    document.getElementById('screen').classList.toggle('noreel', !!meta.hideReel && meta.state !== 'spinning'); // หมุนเมื่อไหร่ โชว์รายชื่อเสมอ
     document.getElementById('sPool').parentElement.style.display = meta.hideReel ? 'none' : '';
     if (meta.fx && meta.fx !== S.lastFx) { S.lastFx = meta.fx; if (meta.state === 'done') confetti(); }
   });
@@ -304,8 +316,8 @@ function beginSpin(c) {
   const dur = 4500 + strength * 3500; const laps = Math.round(n * (2 + strength * 4)) + 20;
   const p0 = S.pos; let p1 = Math.floor(p0) + laps; p1 += ((wi - p1) % n + n) % n; // land exactly on wi
   S.spin = { t0: now(), dur, p0, p1, w: list[wi] }; S.vel = 0;
-  document.getElementById('glow').classList.add('on');
-  D.child('meta').update({ state: 'spinning' }).catch(dbErr);
+  document.getElementById('glow').classList.add('on'); document.getElementById('screen').classList.remove('noreel');
+  D.child('meta').update({ state: 'spinning', spinAt: firebase.database.ServerValue.TIMESTAMP }).catch(dbErr);
 }
 function finish(w) {
   const rec = { id: w.id, n: w.n, c: w.c || '', t: w.t || '', prize: meta.prize || '', at: now() };
@@ -337,12 +349,12 @@ function startDial() {
     document.getElementById('dPrize').textContent = meta.prize || '—';
     document.getElementById('dPool').textContent = pool().length;
     const st = document.getElementById('dSt');
-    st.textContent = meta.state === 'spinning' ? 'กำลังสุ่ม…' : meta.state === 'done' ? 'ได้ผู้โชคดีแล้ว' : 'หมุนคิวบ์แล้วปล่อยมือ';
+    st.textContent = (meta.state === 'spinning' && !spinStuck()) ? 'กำลังสุ่ม…' : meta.state === 'done' ? 'ได้ผู้โชคดีแล้ว' : 'หมุนคิวบ์แล้วปล่อยมือ';
     document.getElementById('dLast').innerHTML = meta.state === 'done' && meta.last ? 'ผู้โชคดี: <b>' + meta.last.n + '</b>' + (meta.last.c ? ' · ' + meta.last.c : '') : '';
   });
   const c = document.getElementById('cube'), knob = document.getElementById('knob'), heat = document.getElementById('heat');
   const ang = e => { const r = c.getBoundingClientRect(); return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)) * 180 / Math.PI; };
-  c.addEventListener('pointerdown', e => { if (meta.state === 'spinning') return; Dl.down = true; Dl.lastA = ang(e); Dl.samples = []; Dl.energy = 0; c.classList.add('live'); c.setPointerCapture(e.pointerId); });
+  c.addEventListener('pointerdown', e => { if (meta.state === 'spinning' && !spinStuck()) return; Dl.down = true; Dl.lastA = ang(e); Dl.samples = []; Dl.energy = 0; c.classList.add('live'); c.setPointerCapture(e.pointerId); });
   c.addEventListener('pointermove', e => {
     if (!Dl.down || Dl.lastA === null) return;
     const a = ang(e); let d = a - Dl.lastA; if (d > 180) d -= 360; if (d < -180) d += 360; Dl.lastA = a;
@@ -357,7 +369,7 @@ function startDial() {
     if (!Dl.down) return; Dl.down = false; Dl.lastA = null; c.classList.remove('live');
     const t = now(); const recent = Dl.samples.filter(s => t - s.t < 250); const degPerSec = recent.reduce((s, x) => s + x.d, 0) / 0.25;
     heat.style.strokeDashoffset = 100;
-    if (meta.state === 'spinning') return;
+    if (meta.state === 'spinning' && !spinStuck()) return;
     if (Dl.energy >= 180 && degPerSec > 120 && pool().length) { // released while spinning → draw
       const strength = Math.min(1, degPerSec / 900);
       D.child('live').set({ v: 0, t: firebase.database.ServerValue.TIMESTAMP });
@@ -397,7 +409,7 @@ function startAdmin() {
   PRIZES.forEach(p => aPrizeSel.add(new Option(p, p)));
   aPrizeSel.onchange = () => { if (aPrizeSel.value) { aPrize.value = aPrizeSel.value; D.child('meta').update({ prize: aPrizeSel.value }).catch(dbErr); } };
   handlers.push(() => {
-    aState.textContent = { idle: 'พร้อม', spinning: 'กำลังสุ่ม', done: 'โชว์ผลอยู่' }[meta.state] || meta.state;
+    aState.textContent = (spinStuck() ? 'ค้างที่ "กำลังสุ่ม" — กด "ล้างจอผลลัพธ์" หรือหมุนใหม่ได้เลย' : ({ idle: 'พร้อม', spinning: 'กำลังสุ่ม', done: 'โชว์ผลอยู่' }[meta.state] || meta.state)) + (meta.hideReel ? ' · ซ่อนรายชื่ออยู่ (จอใหญ่จะไม่เห็นรายชื่อหมุน)' : '');
     aPool.textContent = pool().length; aWon.textContent = winners.length; aN.textContent = names.length;
     if (document.activeElement !== aPrize) aPrize.value = meta.prize || '';
     aHideReel.checked = !!meta.hideReel;
