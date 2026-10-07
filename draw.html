@@ -212,7 +212,7 @@ textarea{width:100%;min-height:110px;padding:12px;border-radius:10px;border:1px 
 
   <div class="card"><h3>ผู้ได้รับรางวัล</h3>
     <table class="tbl" id="aWins"></table>
-    <div class="row" style="margin-top:12px"><button class="b" id="aUndo">ยกเลิกผลล่าสุด (คืนชื่อเข้าถัง)</button><button class="b" id="aCsv">ดาวน์โหลด CSV</button><button class="b d" id="aResetW">ล้างผลทั้งหมด</button></div>
+    <div class="row" style="margin-top:12px"><button class="b" id="aUndo">ยกเลิกผลล่าสุด (คืนชื่อเข้าถัง)</button><button class="b" id="aDedupe">ลบแถวซ้ำ</button><button class="b" id="aCsv">ดาวน์โหลด CSV</button><button class="b d" id="aResetW">ล้างผลทั้งหมด</button></div>
   </div>
 </section>
 
@@ -283,7 +283,7 @@ function tickScreen(t) {
   if (S.spin) {
     const k = Math.min(1, (now() - S.spin.t0) / S.spin.dur); const e = 1 - Math.pow(1 - k, 3);
     S.pos = S.spin.p0 + (S.spin.p1 - S.spin.p0) * e;
-    if (k >= 1) { const w = S.spin.w; S.spin = null; finish(w); }
+    if (k >= 1) { const w = S.spin.w, cid = S.spin.cmdId; S.spin = null; finish(w, cid); }
   } else if (meta.state !== 'done') {
     // live drag: velocity from dial (items/sec), decays if stale
     const age = (now() - (live.t || 0)) / 1000; const v = age < 0.6 ? (live.v || 0) : 0;
@@ -315,13 +315,14 @@ function beginSpin(c) {
   const strength = Math.max(0.3, Math.min(1, c.strength || 0.6));
   const dur = 4500 + strength * 3500; const laps = Math.round(n * (2 + strength * 4)) + 20;
   const p0 = S.pos; let p1 = Math.floor(p0) + laps; p1 += ((wi - p1) % n + n) % n; // land exactly on wi
-  S.spin = { t0: now(), dur, p0, p1, w: list[wi] }; S.vel = 0;
+  S.spin = { t0: now(), dur, p0, p1, w: list[wi], cmdId: c.id }; S.vel = 0;
   document.getElementById('glow').classList.add('on'); document.getElementById('screen').classList.remove('noreel');
   D.child('meta').update({ state: 'spinning', spinAt: firebase.database.ServerValue.TIMESTAMP }).catch(dbErr);
 }
-function finish(w) {
+function finish(w, cid) {
   const rec = { id: w.id, n: w.n, c: w.c || '', t: w.t || '', prize: meta.prize || '', at: now() };
-  D.child('winners').push(rec).catch(dbErr);
+  // ใช้ id ของคำสั่งหมุนเป็น key → เปิดจอใหญ่กี่เครื่องก็บันทึกแค่แถวเดียว
+  D.child('winners/' + (cid || 'w' + uid())).set(rec).catch(dbErr);
   D.child('meta').update({ state: 'done', last: rec }).catch(dbErr);
   confetti();
 }
@@ -440,6 +441,7 @@ function startAdmin() {
   aFileReplace.onclick = () => readFile().then(l => { if (confirm('แทนที่รายชื่อทั้งหมดด้วย ' + l.length + ' รายชื่อจากไฟล์?')) saveNames(l, true); }).catch(e => alert(e.message));
   aWipe.onclick = () => { if (confirm('ล้างรายชื่อทั้งหมด?')) D.child('names').remove().catch(dbErr); };
   aUndo.onclick = () => { if (!winners.length || !confirm('ยกเลิกผลล่าสุด: ' + winners[winners.length - 1].n + '?')) return; D.child('winners').once('value', s => { const v = s.val() || {}; const k = Object.keys(v).sort((a, b) => v[a].at - v[b].at).pop(); if (k) D.child('winners/' + k).remove(); D.child('meta').update({ state: 'idle', last: null }); }); };
+  aDedupe.onclick = () => { D.child('winners').once('value', s => { const v = s.val() || {}; const keys = Object.keys(v).sort((a, b) => v[a].at - v[b].at); const seen = new Set(); const del = []; keys.forEach(k => { const sig = v[k].id + '|' + (v[k].prize || ''); if (seen.has(sig)) del.push(k); else seen.add(sig); }); if (!del.length) return alert('ไม่มีแถวซ้ำ'); if (!confirm('ลบแถวซ้ำ ' + del.length + ' แถว (เก็บแถวแรกของแต่ละคน/รางวัล)?')) return; const up = {}; del.forEach(k => up[k] = null); D.child('winners').update(up).catch(dbErr); }); };
   aResetW.onclick = () => { if (confirm('ล้างผู้ได้รับรางวัลทั้งหมด? ทุกคนจะกลับเข้าถัง')) { D.child('winners').remove(); D.child('meta').update({ state: 'idle', last: null }); } };
   aCsv.onclick = () => { const rows = [['no', 'name', 'company', 'table', 'prize', 'time']].concat(winners.map((x, i) => [i + 1, x.n, x.c, x.t, x.prize, new Date(x.at).toLocaleString('th-TH')])); const b = new Blob(['\ufeff' + rows.map(r => r.map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(',')).join('\n')], { type: 'text/csv' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'lucky-draw-winners.csv'; a.click(); };
 }
